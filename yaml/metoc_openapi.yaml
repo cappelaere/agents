@@ -1,0 +1,266 @@
+openapi: 3.0.3
+info:
+  title: Arctic METOC Agent API (PoX, Open‑Meteo + Geocoder)
+  version: 0.4.0
+  description: >
+    Minimal PoX API using Open‑Meteo for atmosphere/marine and Open‑Meteo Geocoding
+    for place search and reverse geocoding. Includes governance + orchestrate metadata.
+servers:
+  - url: http://localhost:8080/metoc
+tags:
+  - name: Health
+  - name: Geocoder
+  - name: Atmosphere
+  - name: Marine
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      responses:
+        '200':
+          description: OK
+          headers:
+            X-Request-ID:
+              description: Correlation ID assigned by middleware (or supplied by caller).
+              schema: { type: string }
+            X-Response-Time-MS:
+              description: Elapsed processing time in milliseconds.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  governance:
+                    $ref: '#/components/schemas/GovernanceMeta'
+                  
+  /geocode/search:
+    get:
+      tags: [Geocoder]
+      summary: Forward geocoding via Open‑Meteo Geocoding API
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema: { type: string, example: "Utqiagvik" }
+        - name: count
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+        - name: language
+          in: query
+          required: false
+          schema: { type: string, example: "en" }
+        - name: format
+          in: query
+          required: false
+          schema: { type: string, enum: ["json"], default: "json" }
+      responses:
+        '200':
+          description: Geocoding results
+          headers:
+            X-Request-ID:
+              description: Correlation ID assigned by middleware (or supplied by caller).
+              schema: { type: string }
+            X-Response-Time-MS:
+              description: Elapsed processing time in milliseconds.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results: { type: object }
+                  governance:
+                    $ref: '#/components/schemas/GovernanceMeta'
+                  
+  /atmosphere/forecast:
+    get:
+      tags: [Atmosphere]
+      summary: Atmospheric forecast via Open‑Meteo
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema: { type: number, minimum: -90, maximum: 90 }
+        - name: lon
+          in: query
+          required: true
+          schema: { type: number, minimum: -180, maximum: 180 }
+        - name: hourly
+          in: query
+          required: false
+          schema: { type: string }
+        - name: daily
+          in: query
+          required: false
+          schema: { type: string }
+        - name: current_weather
+          in: query
+          required: false
+          schema: { type: boolean, default: true }
+        - name: timezone
+          in: query
+          required: false
+          schema: { type: string, example: UTC }
+        - name: forecast_days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 16, default: 7 }
+      responses:
+        '200':
+          description: Open‑Meteo forecast payload
+          headers:
+            X-Request-ID:
+              description: Correlation ID assigned by middleware (or supplied by caller).
+              schema: { type: string }
+            X-Response-Time-MS:
+              description: Elapsed processing time in milliseconds.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  forecast: { type: object }
+                  governance:
+                    $ref: '#/components/schemas/GovernanceMeta'
+                 
+  /atmosphere/archive:
+    get:
+      tags: [Atmosphere]
+      summary: Historical weather via Open‑Meteo Archive API
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema: { type: number }
+        - name: lon
+          in: query
+          required: true
+          schema: { type: number }
+        - name: start_date
+          in: query
+          required: true
+          schema: { type: string, example: "2025-09-01" }
+        - name: end_date
+          in: query
+          required: true
+          schema: { type: string, example: "2025-10-08" }
+        - name: hourly
+          in: query
+          required: false
+          schema: { type: string }
+        - name: daily
+          in: query
+          required: false
+          schema: { type: string }
+        - name: timezone
+          in: query
+          required: false
+          schema: { type: string, example: UTC }
+      responses:
+        '200':
+          description: Open‑Meteo archive payload
+          headers:
+            X-Request-ID:
+              description: Correlation ID assigned by middleware (or supplied by caller).
+              schema: { type: string }
+            X-Response-Time-MS:
+              description: Elapsed processing time in milliseconds.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  archive: { type: object }
+                  governance:
+                    $ref: '#/components/schemas/GovernanceMeta'
+                
+  /marine/forecast:
+    get:
+      tags: [Marine]
+      summary: Marine forecast via Open‑Meteo Marine API
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema: { type: number }
+        - name: lon
+          in: query
+          required: true
+          schema: { type: number }
+        - name: hourly
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: timezone
+          in: query
+          required: false
+          schema: { type: string, example: UTC }
+        - name: forecast_days
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 10, default: 5 }
+      responses:
+        '200':
+          description: Open‑Meteo marine payload
+          headers:
+            X-Request-ID:
+              description: Correlation ID assigned by middleware (or supplied by caller).
+              schema: { type: string }
+            X-Response-Time-MS:
+              description: Elapsed processing time in milliseconds.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  marine: { type: object }
+                  governance:
+                    $ref: '#/components/schemas/GovernanceMeta'
+                
+
+components:
+  schemas:
+    GovernanceMeta:
+      type: object
+      additionalProperties: true
+      properties:
+        app: { type: string }
+        app_version: { type: string }
+        endpoint: { type: string }
+        timestamp: { type: string, format: date-time }
+        request_id: { type: string }
+        served_by: { type: string }
+        inputs:
+          type: object
+          additionalProperties: true
+        data_lineage:
+          type: object
+          additionalProperties: true
+        quality:
+          type: object
+          additionalProperties: true
+        policies_applied:
+          type: array
+          items: { type: string }
+        risk_assessments:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        tags:
+          type: object
+          additionalProperties: true
+        license:
+          type: object
+          properties:
+            name: { type: string }
+            url: { type: string }
+    

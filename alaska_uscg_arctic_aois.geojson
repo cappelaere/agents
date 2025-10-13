@@ -1,0 +1,466 @@
+{
+  "type": "FeatureCollection",
+  "name": "alaska_uscg_arctic_aois_bbox",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "chukchi_sea_ak",
+        "display_name": "Chukchi Sea (AK sector)",
+        "type": "bbox",
+        "bbox": [
+          -172.0,
+          68.0,
+          -157.0,
+          72.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "West Arctic approaches off Alaska; tile for high-latitude work."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -172.0,
+              68.0
+            ],
+            [
+              -157.0,
+              68.0
+            ],
+            [
+              -157.0,
+              72.5
+            ],
+            [
+              -172.0,
+              72.5
+            ],
+            [
+              -172.0,
+              68.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "beaufort_sea_west",
+        "display_name": "Beaufort Sea (West AK)",
+        "type": "bbox",
+        "bbox": [
+          -160.0,
+          70.0,
+          -146.0,
+          73.0
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Offshore west Beaufort; north of NPR-A."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -160.0,
+              70.0
+            ],
+            [
+              -146.0,
+              70.0
+            ],
+            [
+              -146.0,
+              73.0
+            ],
+            [
+              -160.0,
+              73.0
+            ],
+            [
+              -160.0,
+              70.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "beaufort_sea_east",
+        "display_name": "Beaufort Sea (East to Canada boundary)",
+        "type": "bbox",
+        "bbox": [
+          -146.0,
+          69.8,
+          -141.0,
+          72.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Near North Slope east and US/Canada maritime boundary."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -146.0,
+              69.8
+            ],
+            [
+              -141.0,
+              69.8
+            ],
+            [
+              -141.0,
+              72.5
+            ],
+            [
+              -146.0,
+              72.5
+            ],
+            [
+              -146.0,
+              69.8
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "barrow_offshore",
+        "display_name": "Utqia\u0121vik (Barrow) Offshore",
+        "type": "bbox",
+        "bbox": [
+          -158.0,
+          71.0,
+          -152.0,
+          72.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Nearshore corridor north of Utqia\u0121vik."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -158.0,
+              71.0
+            ],
+            [
+              -152.0,
+              71.0
+            ],
+            [
+              -152.0,
+              72.5
+            ],
+            [
+              -158.0,
+              72.5
+            ],
+            [
+              -158.0,
+              71.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "bering_strait_chokepoint",
+        "display_name": "Bering Strait Chokepoint",
+        "type": "bbox",
+        "bbox": [
+          -170.0,
+          65.0,
+          -164.0,
+          67.0
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Key transit gate between Bering and Chukchi seas."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -170.0,
+              65.0
+            ],
+            [
+              -164.0,
+              65.0
+            ],
+            [
+              -164.0,
+              67.0
+            ],
+            [
+              -170.0,
+              67.0
+            ],
+            [
+              -170.0,
+              65.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "kotzebue_sound",
+        "display_name": "Kotzebue Sound",
+        "type": "bbox",
+        "bbox": [
+          -164.0,
+          66.0,
+          -160.0,
+          68.0
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Approaches to Kotzebue."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -164.0,
+              66.0
+            ],
+            [
+              -160.0,
+              66.0
+            ],
+            [
+              -160.0,
+              68.0
+            ],
+            [
+              -164.0,
+              68.0
+            ],
+            [
+              -164.0,
+              66.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "norton_sound",
+        "display_name": "Norton Sound",
+        "type": "bbox",
+        "bbox": [
+          -165.5,
+          63.0,
+          -160.0,
+          65.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Northern Bering Sea embayment."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -165.5,
+              63.0
+            ],
+            [
+              -160.0,
+              63.0
+            ],
+            [
+              -160.0,
+              65.5
+            ],
+            [
+              -165.5,
+              65.5
+            ],
+            [
+              -165.5,
+              63.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "point_hope_approaches",
+        "display_name": "Point Hope Approaches",
+        "type": "bbox",
+        "bbox": [
+          -170.0,
+          67.5,
+          -165.0,
+          69.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Traffic transition area toward Chukchi Sea."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -170.0,
+              67.5
+            ],
+            [
+              -165.0,
+              67.5
+            ],
+            [
+              -165.0,
+              69.5
+            ],
+            [
+              -170.0,
+              69.5
+            ],
+            [
+              -170.0,
+              67.5
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "st_lawrence_island_approaches",
+        "display_name": "St. Lawrence Island Approaches",
+        "type": "bbox",
+        "bbox": [
+          -173.0,
+          62.0,
+          -168.0,
+          64.0
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Gateway area; southern side of the Strait approaches."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -173.0,
+              62.0
+            ],
+            [
+              -168.0,
+              62.0
+            ],
+            [
+              -168.0,
+              64.0
+            ],
+            [
+              -173.0,
+              64.0
+            ],
+            [
+              -173.0,
+              62.0
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "north_slope_nearshore_corridor",
+        "display_name": "North Slope Nearshore Corridor",
+        "type": "bbox",
+        "bbox": [
+          -158.0,
+          70.0,
+          -141.0,
+          71.5
+        ],
+        "defaults": {
+          "timespan": 120,
+          "msgtype": "extended"
+        },
+        "notes": "Nearshore operations corridor along the North Slope."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -158.0,
+              70.0
+            ],
+            [
+              -141.0,
+              70.0
+            ],
+            [
+              -141.0,
+              71.5
+            ],
+            [
+              -158.0,
+              71.5
+            ],
+            [
+              -158.0,
+              70.0
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}
