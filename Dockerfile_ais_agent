@@ -15,7 +15,10 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy runtime assets
-COPY ais_openapi.yml ./ais_openapi.yml
+COPY yaml/ais_openapi.yml ./ais_openapi.yml
+COPY ais_vessel_info.py ./ais_vessel_info.py
+COPY ais_agent.py ./ais_agent.py
+
 COPY env.sh ./env.sh
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
@@ -26,7 +29,7 @@ ENV HOST=0.0.0.0
 ENV PORT=8100
 # Set START_CMD to your library's launcher if different.
 # Example: START_CMD="ais-agent --openapi ${OPENAPI_FILE} --host ${HOST} --port ${PORT}"
-ENV START_CMD="uvicorn ais_agent:app --host 4{HOST} --port ${PORT} -reload"
+ENV START_CMD="uvicorn ais_agent:app --host ${HOST} --port ${PORT} --reload"
 
 EXPOSE 8100
 

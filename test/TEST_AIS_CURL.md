@@ -29,6 +29,10 @@ curl -s "$BASE/vessels/search?shipname=BOSS" | jq .
 # 5) Vessel info — by MMSI
 curl -s "http://localhost:8100/vessel/info?mmsi=257017000" | jq .
 
+curl -s "http://localhost:8100/vessel/info?imo=9411410" | jq .
+curl -s "http://localhost:8100/vessel/info?imo=273214780" | jq .
+curl -s "http://localhost:8100/vessel/info?shipname=BOSS" | jq .
+
 # 6) Vessel track — by IMO within a time window
 curl -s "http://localhost:8100/vessel/track?imo=9538907&fromdt=2025-09-01%2000:00&todt=2025-09-02%2000:00" | jq .
 

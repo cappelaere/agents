@@ -866,16 +866,16 @@ paths:
       summary: Vessel Info
       operationId: vessel_info_vessel_info_get
       parameters:
-      - name: ship_id
+      - name: shipname
         in: query
         required: false
         schema:
           anyOf:
           - type: string
           - type: 'null'
-          description: Provider vessel id
-          title: Ship Id
-        description: Provider vessel id
+          description: Provider vessel name
+          title: Ship Name
+        description: Provider vessel name
       - name: mmsi
         in: query
         required: false
@@ -1709,25 +1709,14 @@ x-llm-usage:
         start: '2025-10-10T00:00:00Z'
         end: '2025-10-13T23:59:59Z'
 servers:
-- url: https://{subdomain}.{domain}{basePath}
-  description: Production
-  variables:
-    subdomain:
-      default: api
-      description: Service subdomain
-    domain:
-      default: example.com
-      description: Root domain
-    basePath:
-      default: ''
-      description: Optional base path, e.g., /v1
-- url: http://localhost:{port}{basePath}
-  description: Local development
-  variables:
-    port:
-      default: '8000'
-    basePath:
-      default: ''
+- url: https://{host}
+    description: Default
+    variables:
+      host:
+        default: localhost:8080
+        description: Hostname and port
+- url: http://localhost:8100
+    description: Local development
 tags:
 - name: Health
   description: Service health checks.

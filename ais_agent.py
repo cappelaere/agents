@@ -1,12 +1,14 @@
 # ais_agent.py  (v0.2.0)
 # Minimal AIS REST→REST gateway with AOI registry + governance meta (FQ URLs)
-# Run:  uvicorn ais_agent:app --host 0.0.0.0 --port 8100 -reload
+# Run:  uvicorn ais_agent:app --host 0.0.0.0 --port 8100 --reload
 # Deps: pip install fastapi uvicorn httpx pydantic
 
 from __future__ import annotations
 import os, json, math, hashlib, logging, sys, time
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, List
+from pathlib import Path
+from ais_vessel_info import fetch_vessel_info_by_imo, fetch_vessel_info_by_mmsi, fetch_vessel_info_by_name
 
 import httpx
 from fastapi import FastAPI, Query, Header, HTTPException, Path, Request
@@ -27,11 +29,11 @@ logger.addHandler(handler)
 logger.setLevel(LOG_LEVEL)
 logger.info("***** Starting logger...")
 
-APP_NAME      = "api_gateway_agent"
-APP_VERSION   = "0.2.0"
-UPSTREAM_BASE = os.getenv("AIS_UPSTREAM_BASE", "https://services.marinetraffic.com/api")
-
-AOI_PATH      = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_aois.geojson")
+APP_NAME                = "api_gateway_agent"
+APP_VERSION             = "0.2.0"
+UPSTREAM_BASE           = os.getenv("AIS_UPSTREAM_BASE", "https://services.marinetraffic.com/api")
+UPSTREAM_BASE_GRAPHQL   = os.getenv("AIS_UPSTREAM_BASE_GRAPHQL", "https://api.kpler.marinetraffic.com/v2/vessels/graphql")
+AOI_PATH                = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_aois.geojson")
 
 ENV_KEY                     = os.getenv("AIS_EXPORTVESSELS_KEY", "")
 AIS_EXPORTVESSELS_KEY       = os.getenv("AIS_EXPORTVESSELS_KEY", "")
@@ -39,7 +41,7 @@ AIS_SHIPSEARCH_KEY          = os.getenv("AIS_SHIPSEARCH_KEY", "")
 AIS_VESSELPHOTO_KEY         = os.getenv("AIS_VESSELPHOTO_KEY", "")
 AIS_PORTCALLS_KEY           = os.getenv("AIS_PORTCALLS_KEY", "")
 AIS_VESSELEVENTS_KEY        = os.getenv("AIS_VESSELEVENTS_KEY", "")
-
+AIS_OWNERSHIP_KEY           = os.getenv("AIS_OWNERSHIP_KEY", "")
 
 # ----- Ship types (per swagger.json) -----
 SHIPTYPE_CODE_SET = {2, 4, 6, 7, 8}
@@ -99,6 +101,18 @@ async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | st
             raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
         ctype = r.headers.get("content-type", "")
         return r.json() if "application/json" in ctype else r.text
+
+async def upstream2_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | str:
+    url = f"{UPSTREAM_BASE_GRAPHQL}{path}"
+
+    logger.info(f"upstream2_get {url} {params}")
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        r = await client.get(url, params=params)
+        if r.status_code >= 400:
+            raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
+        ctype = r.headers.get("content-type", "")
+        return r.json() if "application/json" in ctype else r.text
+
 
 def bbox_around_point_nm(lon: float, lat: float, radius_nm: float) -> Tuple[float, float, float, float]:
     radius_km = radius_nm * 1.852
@@ -499,26 +513,25 @@ async def vessels_nearby(
 @app.get("/vessel/info", tags=["Vessels"])
 async def vessel_info(
     request: Request,
-    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
-    mmsi: Optional[str]   = Query(None, description="Maritime Mobile Service Identity"),
-    imo: Optional[str]    = Query(None, description="IMO number"),
+    mmsi: Optional[str]     = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str]      = Query(None, description="IMO number"),
+    shipname: Optional[str]     = Query(None, description="Ship Name"),
 ):
-    apikey = AIS_EXPORTVESSELS_KEY
-    id_params = make_identifier_params(ship_id, mmsi, imo)
-   
-    id_params['protocol'] = 'jsono'
-    id_params['v'] = 1
+    if imo:
+        payload = fetch_vessel_info_by_imo(imo, after_cursor=None)
+    if mmsi:
+        payload = fetch_vessel_info_by_mmsi(mmsi, after_cursor=None)
+    if shipname:
+        payload = fetch_vessel_info_by_name(shipname, after_cursor=None)
 
-    payload = await upstream_get(f"/vesselmasterdata/{apikey}", id_params)
     meta = GovernanceMeta(
         source=APP_NAME,
         endpoint=fq(request),
-        upstreamEndpoint=upstream_template("/exportvessel/{api_key}"),
-        variablesHash=vhash(id_params),
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    return JSONResponse({"node": payload, "meta": meta.dict()})
+    nodes = payload['data']['vessels']['nodes']
+    return JSONResponse({"nodes":nodes, "meta": meta.dict()})
 
 # ----- Vessel info -----
 @app.get("/vessel/photo", tags=["Vessels"])
