@@ -15,25 +15,26 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy runtime assets
-COPY ./yaml/metoc_openapi.yaml ./metoc_openapi.yaml
-COPY ais_agent.py ./metoc_openmeteo_agent.py
+COPY metoc_openapi.yaml ./metoc_openapi.yaml
+COPY metoc_agent.py ./metoc_agent.py
 
-COPY env.sh ./env.sh
+#COPY ../env.sh ./env.sh
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
 # Default environment
-ENV OPENAPI_FILE=ais_openapi.yml
+ENV OPENAPI_FILE=metoc_openapi.yml
 ENV HOST=0.0.0.0
 ENV PORT=8080
+
 # Set START_CMD to your library's launcher if different.
 # Example: START_CMD="ais-agent --openapi ${OPENAPI_FILE} --host ${HOST} --port ${PORT}"
-ENV START_CMD="uvicorn metoc_openmeteo_agent:app --host ${HOST} --port ${PORT} --reload"
+ENV START_CMD="uvicorn metoc_agent:app --host ${HOST} --port ${PORT} --reload"
 
 EXPOSE 8100
 
 # Optional healthcheck; disable or adjust path if your agent differs
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:${PORT}/health || exit 1
+    CMD curl -fsS http://localhost:${PORT}/metoc/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

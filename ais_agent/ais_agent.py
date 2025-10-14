@@ -29,7 +29,7 @@ logger.addHandler(handler)
 logger.setLevel(LOG_LEVEL)
 logger.info("***** Starting logger...")
 
-APP_NAME                = "api_gateway_agent"
+APP_NAME                = "ais_agent"
 APP_VERSION             = "0.2.0"
 UPSTREAM_BASE           = os.getenv("AIS_UPSTREAM_BASE", "https://services.marinetraffic.com/api")
 UPSTREAM_BASE_GRAPHQL   = os.getenv("AIS_UPSTREAM_BASE_GRAPHQL", "https://api.kpler.marinetraffic.com/v2/vessels/graphql")
@@ -307,10 +307,10 @@ app = FastAPI(
 )
 
 # Health
-@app.get("/health", tags=["Health"])
+@app.get("/ais/health", tags=["Health"])
 async def health(request: Request):
     ok, detail = True, "ok"
-  
+    logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
     return JSONResponse({
         "status": "ok" if ok else "degraded",
         "version": APP_VERSION,
@@ -324,7 +324,7 @@ async def health(request: Request):
     })
 
 # ----- AOI endpoints -----
-@app.get("/aoi", tags=["AOI"])
+@app.get("/ais/aoi", tags=["AOI"])
 async def list_aois(request: Request):
     return JSONResponse({
         "items": AOI.list(),
@@ -337,7 +337,7 @@ async def list_aois(request: Request):
         },
     })
 
-@app.get("/aoi/{aoi_id}", tags=["AOI"])
+@app.get("/ais/aoi/{aoi_id}", tags=["AOI"])
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
     feat = AOI.get(aoi_id)
     bbox = feat.properties.get("bbox")
@@ -357,7 +357,7 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
     })
 
 # ----- Vessel search -----
-@app.get("/vessels/search", tags=["Vessels"])
+@app.get("/ais/vessels/search", tags=["Vessels"])
 async def vessels_search(
     request: Request,
     shipname: Optional[str] = Query(None, description="Vessel name (full or partial)"),
@@ -382,7 +382,7 @@ async def vessels_search(
     return JSONResponse({"nodes": payload, "meta": meta.dict()})
 
 # ----- Vessels in AOI -----
-@app.get("/vessels/aoi", tags=["Vessels"])
+@app.get("/ais/vessels/aoi", tags=["Vessels"])
 async def vessels_in_aoi(
     request: Request,
     aoi_id: Optional[str] = Query(None, description="Registered AOI id; alternative to bbox"),
@@ -437,7 +437,7 @@ async def vessels_in_aoi(
     return JSONResponse({"nodes": payload, "meta": meta_dict})
 
 # ----- Vessels nearby -----
-@app.get("/vessels/nearby", tags=["Vessels"])
+@app.get("/ais/vessels/nearby", tags=["Vessels"])
 async def vessels_nearby(
     request: Request,
     lat: Optional[float] = Query(None, ge=-90, le=90, description="Latitude (WGS84)"),
@@ -510,7 +510,7 @@ async def vessels_nearby(
     return JSONResponse({"nodes": nodes, "meta": meta_dict})
 
 # ----- Vessel info -----
-@app.get("/vessel/info", tags=["Vessels"])
+@app.get("/ais/vessel/info", tags=["Vessels"])
 async def vessel_info(
     request: Request,
     mmsi: Optional[str]     = Query(None, description="Maritime Mobile Service Identity"),
@@ -534,7 +534,7 @@ async def vessel_info(
     return JSONResponse({"nodes":nodes, "meta": meta.dict()})
 
 # ----- Vessel info -----
-@app.get("/vessel/photo", tags=["Vessels"])
+@app.get("/ais//vessel/photo", tags=["Vessels"])
 async def vessel_photo(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provide vessel id"),
@@ -561,7 +561,7 @@ async def vessel_photo(
     return JSONResponse({"node": payload, "meta": meta.dict()})
 
 # ----- Vessel track -----
-@app.get("/vessel/track", tags=["Tracks"])
+@app.get("/ais/vessel/track", tags=["Tracks"])
 async def vessel_track(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),

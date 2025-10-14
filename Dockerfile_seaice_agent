@@ -15,7 +15,7 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy runtime assets
-COPY yaml/seaice_openapi.yml ./seaice_openapi.yml
+COPY ./yaml/seaice_openapi.yaml ./seaice_openapi.yaml
 COPY seaice_agent.py ./seaice_agent.py
 
 COPY env.sh ./env.sh

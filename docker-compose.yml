@@ -1,0 +1,36 @@
+
+services:
+  metoc_agent:
+    build:
+      context: ./metoc_agent
+    image: metoc_agent:latest
+    container_name: metoc_agent
+    ports:
+      - "8080:8080"
+    secrets:
+        - env
+
+  seaice_agent:
+    build:
+      context: ./seaice_agent
+    image: seaice_agent:latest
+    container_name: seaice_agent
+    ports:
+      - "8090:8090"
+    secrets:
+        - env
+
+  ais_agent:
+    build:
+      context: ./ais_agent
+    image: ais_agent:latest
+    container_name: ais_agent
+    ports:
+      - "8100:8100"
+    secrets:
+      - env
+
+secrets:
+  env:
+    file: ./.env.sh
+

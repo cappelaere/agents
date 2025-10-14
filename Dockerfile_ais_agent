@@ -15,7 +15,7 @@ COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy runtime assets
-COPY yaml/ais_openapi.yml ./ais_openapi.yml
+COPY yaml/ais_openapi.yaml ./ais_openapi.yaml
 COPY ais_vessel_info.py ./ais_vessel_info.py
 COPY ais_agent.py ./ais_agent.py
 

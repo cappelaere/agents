@@ -99,3 +99,27 @@ deactivate
 Store Earhtdata login in .netrc
 printf "machine urs.earthdata.nasa.gov login $USERNAME password $PASSWORD$\n" >> ~/.netrc
 chmod 600 ~/.netrc
+
+# Build procedure
+docker compose build metoc_agent
+docker compose build seaice_agent
+docker compose build ais_agent
+
+# Run agents
+docker compose up --no-deps -d metoc_agent
+docker compose up --no-deps -d seaice_agent
+docker compose up --no-deps -d ais_agent
+
+# follow live logs for a single service
+docker compose logs -f metoc_agent
+docker compose logs -f seance_agent
+docker compose logs -f his_agent
+
+# last 200 lines + timestamps
+docker compose logs --tail=200 --timestamps metoc_agent
+
+# since a specific time (RFC3339 or relative)
+docker compose logs --since=30m metoc_agent
+
+# Down agent
+docker down metoc_agent

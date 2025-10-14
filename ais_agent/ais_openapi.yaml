@@ -1,0 +1,1734 @@
+openapi: 3.1.0
+info:
+  title: api_gateway_agent
+  description: "AIS gateway with AOI registry and governance meta (FQ URLs).\n\nThis\
+    \ OpenAPI specification describes the **api_gateway_agent** service (v0.2.0).\n\
+    \n### Purpose\nBuilt for AIS (Automatic Identification System) and Area of Interest\
+    \ (AOI) workflows,\nthis API helps search vessels, fetch profiles, retrieve tracks,\
+    \ and query by AOI or proximity.\n\n### Authentication\nIf `securitySchemes` are\
+    \ defined below, include the appropriate credential in each call.\nFor example,\
+    \ with a bearer token: `Authorization: Bearer <token>`.\n\n### Error Model\nAll\
+    \ endpoints return non-2xx with a JSON body including `error.code`, `error.message`,\n\
+    and optionally `error.details`. LLMs should surface `error.message` to users and\
+    \ consider\nretrying only when codes imply transient issues (e.g., 429, 503).\
+    \ Avoid blind retries.\n\n### Rate Limits\nIf present in response headers (e.g.,\
+    \ `X-RateLimit-Remaining`, `Retry-After`), respect them.\nBack off exponentially\
+    \ on 429.\n\n### Privacy & Safety\n- Never expose or infer Personally Identifiable\
+    \ Information beyond what the endpoint returns.\n- When uncertain about identifiers\
+    \ (e.g., MMSI vs IMO), call `/vessel/info` to resolve.\n- Use the smallest `limit`\
+    \ that satisfies the user task; paginate with `cursor`/`offset` if available.\n\
+    \n### Determinism for Tools\nWhen this spec is used as a tool by an LLM:\n- Prefer\
+    \ endpoints with explicit filters (e.g., `/vessels/search`) before broad listings.\n\
+    - Always include units (km, nm, UTC timestamps) where applicable.\n- Validate\
+    \ geographic inputs (`-90 \u2264 lat \u2264 90`, `-180 \u2264 lon \u2264 180`).\n\
+    \n### Timestamps & Timezones\nUnless otherwise stated, all timestamps are **UTC**\
+    \ in ISO-8601 (e.g., `2025-10-13T19:00:00Z`)."
+  version: 0.2.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0.html
+paths:
+  /health:
+    get:
+      tags:
+      - Health
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                status: ok
+                service: api_gateway_agent
+                time: '2025-10-13T15:00:00Z'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Returns a simple OK response for liveness/use in readiness probes.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /aoi:
+    get:
+      tags:
+      - AOI
+      summary: List Aois
+      operationId: list_aois_aoi_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                count: 1
+                results:
+                - &id001
+                  aoi_id: bering_sea_ops
+                  name: Bering Sea Operations
+                  geometry:
+                    type: Polygon
+                    coordinates:
+                    - - - -175.0
+                        - 64.0
+                      - - -173.0
+                        - 64.0
+                      - - -173.0
+                        - 65.0
+                      - - -175.0
+                        - 65.0
+                      - - -175.0
+                        - 64.0
+                  created_at: '2025-10-01T09:00:00Z'
+                  updated_at: '2025-10-13T09:00:00Z'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Manage Areas of Interest used to scope vessel queries. May support
+        create/list.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /aoi/{aoi_id}:
+    get:
+      tags:
+      - AOI
+      summary: Get Aoi
+      operationId: get_aoi_aoi__aoi_id__get
+      parameters:
+      - name: aoi_id
+        in: path
+        required: true
+        schema:
+          type: string
+          description: AOI identifier
+          title: Aoi Id
+        description: AOI identifier
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example: *id001
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Operate on a specific AOI resource by ID (retrieve/update/delete).
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessels/search:
+    get:
+      tags:
+      - Vessels
+      summary: Vessels Search
+      operationId: vessels_search_vessels_search_get
+      parameters:
+      - name: shipname
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Vessel name (full or partial)
+          title: Shipname
+        description: Vessel name (full or partial)
+      - name: mmsi
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Maritime Mobile Service Identity
+          title: Mmsi
+        description: Maritime Mobile Service Identity
+      - name: imo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: IMO number
+          title: Imo
+        description: IMO number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                count: 1
+                limit: 25
+                offset: 0
+                results:
+                - &id002
+                  mmsi: '366123456'
+                  imo: '9276651'
+                  name: PACIFIC VOYAGER
+                  call_sign: WDC1234
+                  flag: US
+                  type: tanker
+                  length_m: 250.0
+                  beam_m: 42.0
+                  draught_m: 12.1
+                  ais_class: A
+                  position:
+                    lat: 64.4201
+                    lon: -174.3916
+                    sog_knots: 12.3
+                    cog_deg: 277.4
+                    timestamp: '2025-10-13T14:02:11Z'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Filter vessels by identifiers such as `mmsi`, `imo`, `name`, `call_sign`,
+        or `flag`. Combine filters to narrow results. Pagination via `limit` and `offset`.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessels/aoi:
+    get:
+      tags:
+      - Vessels
+      summary: Vessels In Aoi
+      operationId: vessels_in_aoi_vessels_aoi_get
+      parameters:
+      - name: aoi_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Registered AOI id; alternative to bbox
+          title: Aoi Id
+        description: Registered AOI id; alternative to bbox
+      - name: bbox
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: minLon,minLat,maxLon,maxLat (WGS84)
+          title: Bbox
+        description: minLon,minLat,maxLon,maxLat (WGS84)
+      - name: timespan
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Minutes back
+          default: 60
+          title: Timespan
+        description: Minutes back
+      - name: shiptype
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker
+          title: Shiptype
+        description: 2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker
+      - name: msgtype
+        in: query
+        required: false
+        schema:
+          type: string
+          description: simple | extended | full
+          default: simple
+          title: Msgtype
+        description: simple | extended | full
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                aoi_id: bering_sea_ops
+                count: 1
+                results:
+                - *id002
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: List vessels situated within a predefined Area of Interest (AOI).
+        Manage Areas of Interest used to scope vessel queries. May support create/list.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessels/nearby:
+    get:
+      tags:
+      - Vessels
+      summary: Vessels Nearby
+      operationId: vessels_nearby_vessels_nearby_get
+      parameters:
+      - name: lat
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 90.0
+            minimum: -90.0
+          - type: 'null'
+          description: Latitude (WGS84)
+          title: Lat
+        description: Latitude (WGS84)
+      - name: lon
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: number
+            maximum: 180.0
+            minimum: -180.0
+          - type: 'null'
+          description: Longitude (WGS84)
+          title: Lon
+        description: Longitude (WGS84)
+      - name: radius_nm
+        in: query
+        required: false
+        schema:
+          type: number
+          maximum: 1000.0
+          exclusiveMinimum: 0.0
+          description: Radius in nautical miles
+          default: 50.0
+          title: Radius Nm
+        description: Radius in nautical miles
+      - name: aoi_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: If provided (bbox AOI), its centroid is used
+          title: Aoi Id
+        description: If provided (bbox AOI), its centroid is used
+      - name: timespan
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Minutes back
+          default: 60
+          title: Timespan
+        description: Minutes back
+      - name: shiptype
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker
+          title: Shiptype
+        description: 2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker
+      - name: msgtype
+        in: query
+        required: false
+        schema:
+          type: string
+          description: simple | extended | full
+          default: simple
+          title: Msgtype
+        description: simple | extended | full
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                count: 2
+                limit: 25
+                offset: 0
+                results:
+                - *id002
+                - mmsi: '366654321'
+                  imo: '9276651'
+                  name: ARCTIC DAWN
+                  call_sign: WDC1234
+                  flag: US
+                  type: tanker
+                  length_m: 250.0
+                  beam_m: 42.0
+                  draught_m: 12.1
+                  ais_class: A
+                  position:
+                    lat: 64.4302
+                    lon: -174.2801
+                    sog_knots: 12.3
+                    cog_deg: 277.4
+                    timestamp: '2025-10-13T14:02:11Z'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Given `lat`, `lon`, and `radius_km`, returns vessels observed within
+        the radius. Use small `limit` to control response size; paginate if necessary.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessel/info:
+    get:
+      tags:
+      - Vessels
+      summary: Vessel Info
+      operationId: vessel_info_vessel_info_get
+      parameters:
+      - name: shipname
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Provider vessel name
+          title: Ship Name
+        description: Provider vessel name
+      - name: mmsi
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Maritime Mobile Service Identity
+          title: Mmsi
+        description: Maritime Mobile Service Identity
+      - name: imo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: IMO number
+          title: Imo
+        description: IMO number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example: *id002
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Get a canonical vessel profile by `mmsi` or `imo`. Prefer `mmsi`
+        when available.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessel/photo:
+    get:
+      tags:
+      - Vessels
+      summary: Vessel Photo
+      operationId: vessel_photo_vessel_photo_get
+      parameters:
+      - name: ship_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Provide vessel id
+          title: Ship Id
+        description: Provide vessel id
+      - name: mmsi
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Maritime Mobile Service Identity
+          title: Mmsi
+        description: Maritime Mobile Service Identity
+      - name: imo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: IMO number
+          title: Imo
+        description: IMO number
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                mmsi: '366123456'
+                name: PACIFIC VOYAGER
+                photo_url: https://example.cdn/vessels/366123456/latest.jpg
+                attribution: MarineImages.org
+                captured_at: '2025-09-28T11:04:02Z'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Returns a representative image URL and metadata for the given vessel,
+        when available.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+  /vessel/track:
+    get:
+      tags:
+      - Tracks
+      summary: Vessel Track
+      operationId: vessel_track_vessel_track_get
+      parameters:
+      - name: ship_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Provider vessel id
+          title: Ship Id
+        description: Provider vessel id
+      - name: mmsi
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Maritime Mobile Service Identity
+          title: Mmsi
+        description: Maritime Mobile Service Identity
+      - name: imo
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: IMO number
+          title: Imo
+        description: IMO number
+      - name: fromdt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: UTC start, e.g., 2025-09-01 00:00
+          title: Fromdt
+        description: UTC start, e.g., 2025-09-01 00:00
+      - name: todt
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: UTC end, e.g., 2025-09-02 00:00
+          title: Todt
+        description: UTC end, e.g., 2025-09-02 00:00
+      - name: timespan
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          description: Minutes back (alternative to from/todt)
+          title: Timespan
+        description: Minutes back (alternative to from/todt)
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+              example:
+                mmsi: '366123456'
+                start: '2025-10-10T00:00:00Z'
+                end: '2025-10-13T23:59:59Z'
+                points:
+                - lat: 64.4201
+                  lon: -174.3916
+                  sog_knots: 12.3
+                  cog_deg: 277.4
+                  timestamp: '2025-10-13T14:02:11Z'
+                - lat: 64.5
+                  lon: -174.1
+                  sog_knots: 12.0
+                  cog_deg: 275.0
+                  timestamp: '2025-10-13T14:17:11Z'
+                bbox:
+                - -174.5
+                - 64.42
+                - -174.1
+                - 64.5
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              example:
+                error:
+                  code: 400
+                  message: Bad request
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '404':
+          description: Not found
+          content:
+            application/json:
+              example:
+                error:
+                  code: 404
+                  message: Not found
+                  details: See parameter validation notes.
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '429':
+          $ref: '#/components/responses/Error429'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+        '500':
+          $ref: '#/components/responses/Error5xx'
+          headers:
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining requests in the window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch when the limit resets.
+      description: Returns time-ordered AIS positions for a vessel between `start`
+        and `end` (UTC). Restrict time windows for performance; consider resampling
+        client-side if dense.
+      x-llm-notes:
+        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
+          header if present.
+        minimal_params: Provide only required parameters; add optional filters to
+          improve precision.
+        output_parsimony: Request small 'limit' and elide unused fields when rendering
+          to the user.
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    Error:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: integer
+              format: int32
+            message:
+              type: string
+            details:
+              oneOf:
+              - type: string
+              - type: object
+              - type: array
+    VesselPosition:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        lon:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+        sog_knots:
+          type: number
+          format: double
+        cog_deg:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 360
+        timestamp:
+          type: string
+          format: date-time
+    Vessel:
+      type: object
+      properties:
+        mmsi:
+          type: string
+          pattern: ^[0-9]{9}$
+        imo:
+          type: string
+        name:
+          type: string
+        call_sign:
+          type: string
+        flag:
+          type: string
+          description: ISO 3166-1 alpha-2
+        type:
+          type: string
+        length_m:
+          type: number
+        beam_m:
+          type: number
+        draught_m:
+          type: number
+        ais_class:
+          type: string
+          enum:
+          - A
+          - B
+        position:
+          $ref: '#/components/schemas/VesselPosition'
+    VesselPhoto:
+      type: object
+      properties:
+        mmsi:
+          type: string
+        name:
+          type: string
+        photo_url:
+          type: string
+          format: uri
+        attribution:
+          type: string
+        captured_at:
+          type: string
+          format: date-time
+    TrackPoint:
+      type: object
+      properties:
+        lat:
+          type: number
+          format: double
+        lon:
+          type: number
+          format: double
+        sog_knots:
+          type: number
+          format: double
+        cog_deg:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+    VesselTrack:
+      type: object
+      properties:
+        mmsi:
+          type: string
+        start:
+          type: string
+          format: date-time
+        end:
+          type: string
+          format: date-time
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrackPoint'
+        bbox:
+          type: array
+          items:
+            type: number
+          minItems: 4
+          maxItems: 4
+    GeoJSONPolygon:
+      type: object
+      required:
+      - type
+      - coordinates
+      properties:
+        type:
+          type: string
+          enum:
+          - Polygon
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              minItems: 2
+              maxItems: 2
+              items:
+                type: number
+          description: GeoJSON Polygon coordinates in [lon, lat].
+    AOI:
+      type: object
+      required:
+      - aoi_id
+      - name
+      - geometry
+      properties:
+        aoi_id:
+          type: string
+        name:
+          type: string
+        geometry:
+          $ref: '#/components/schemas/GeoJSONPolygon'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PaginatedVessels:
+      type: object
+      properties:
+        count:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Vessel'
+    AOIList:
+      type: object
+      properties:
+        count:
+          type: integer
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AOI'
+  parameters:
+    limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 25
+        minimum: 1
+        maximum: 100
+      description: Max results returned.
+    offset:
+      name: offset
+      in: query
+      required: false
+      schema:
+        type: integer
+        default: 0
+        minimum: 0
+      description: Pagination offset.
+    lat:
+      name: lat
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -90
+        maximum: 90
+      description: Latitude in decimal degrees.
+    lon:
+      name: lon
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: -180
+        maximum: 180
+      description: Longitude in decimal degrees.
+    radius_km:
+      name: radius_km
+      in: query
+      required: true
+      schema:
+        type: number
+        minimum: 0.1
+        maximum: 500
+      description: Search radius in kilometers.
+    start:
+      name: start
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: UTC start time.
+      example: '2025-10-10T00:00:00Z'
+    end:
+      name: end
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+      description: UTC end time.
+      example: '2025-10-13T23:59:59Z'
+    units:
+      name: units
+      in: query
+      required: false
+      schema:
+        type: string
+        enum:
+        - km
+        - nm
+      description: Distance units.
+    aoi_id:
+      name: aoi_id
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Area of Interest identifier.
+  responses:
+    Error400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error404:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error429:
+      description: Too Many Requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds to wait before retrying.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Error5xx:
+      description: Server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+x-llm-usage:
+  guidance:
+    selection: Choose the most specific endpoint. Use /vessel/info when you have an
+      MMSI/IMO. Use /vessels/search for discovery. Use /vessels/nearby for proximity
+      queries. Use /vessels/aoi for AOI-restricted queries.
+    geo: Validate lat/lon ranges. Distances default to kilometers unless a 'units'
+      parameter is present.
+    time: Use inclusive UTC ranges when calling track/history endpoints. Prefer explicit
+      start/end.
+    pagination: Use 'limit' with conservative defaults (<=50) and advance with 'offset'
+      or 'cursor' if provided.
+    safety: Avoid sending user free-text directly as filters without sanitization;
+      map to known params.
+  canonical_examples:
+  - goal: Find tanker vessels within 30 km of a point and list top 5 by length.
+    calls:
+    - operationId: vesselsNearby
+      params:
+        lat: 64.42
+        lon: -174.39
+        radius_km: 30
+        type: tanker
+        limit: 50
+    - operationId: vesselsNearby-sort-local
+      note: Sort by 'length_m' descending client-side; return top 5 names + MMSI.
+  - goal: "Get a vessel\u2019s profile and latest photo by MMSI."
+    calls:
+    - operationId: vesselInfo
+      params:
+        mmsi: '366123456'
+    - operationId: vesselPhoto
+      params:
+        mmsi: '366123456'
+  - goal: List vessels currently inside a named AOI.
+    calls:
+    - operationId: vesselsInAoi
+      params:
+        aoi_id: bering_sea_ops
+  - goal: "Retrieve a vessel\u2019s track for a specific UTC window."
+    calls:
+    - operationId: vesselTrack
+      params:
+        mmsi: '366123456'
+        start: '2025-10-10T00:00:00Z'
+        end: '2025-10-13T23:59:59Z'
+servers:
+- url: https://{host}/{basePath}
+    description: Default
+    variables:
+      host:
+        default: localhost:8080
+        description: Hostname and port
+      basePath:
+        default: ais
+        description: Base path for all endpoints
+- url: http://localhost:8100/ais
+    description: Local development
+tags:
+- name: Health
+  description: Service health checks.
+- name: Vessels
+  description: Discovery and list endpoints for vessels.
+- name: Vessel
+  description: Single-vessel details, photo, and track.
+- name: AOI
+  description: Manage Areas of Interest for scoping queries.
+externalDocs:
+  description: Project docs
+  url: https://example.com/docs
