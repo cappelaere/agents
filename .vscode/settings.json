@@ -1,0 +1,8 @@
+{
+  "remote.SSH.serverPickPortsFromRange": "40000-45000",
+  "remote.SSH.useLocalServer": false,
+  "remote.SSH.showLoginTerminal": false,
+  "remote.SSH.serverInstallPath": "~/.vscode-server",
+  "remote.SSH.serverListenOnSocket": true,
+  "terminal.integrated.enablePersistentSessions": false
+}
