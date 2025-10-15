@@ -37,6 +37,8 @@ AOI_PATH                = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_aois
 
 ENV_KEY                     = os.getenv("AIS_EXPORTVESSELS_KEY", "")
 AIS_EXPORTVESSELS_KEY       = os.getenv("AIS_EXPORTVESSELS_KEY", "")
+AIS_EXPORTVESSELTRACK_KEY   = os.getenv("AIS_EXPORTVESSELTRACK_KEY", "c49b0d8a02dc441b8a75b7a3bf32d216fdd13032")
+
 AIS_SHIPSEARCH_KEY          = os.getenv("AIS_SHIPSEARCH_KEY", "")
 AIS_VESSELPHOTO_KEY         = os.getenv("AIS_VESSELPHOTO_KEY", "")
 AIS_PORTCALLS_KEY           = os.getenv("AIS_PORTCALLS_KEY", "")
@@ -101,18 +103,6 @@ async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | st
             raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
         ctype = r.headers.get("content-type", "")
         return r.json() if "application/json" in ctype else r.text
-
-async def upstream2_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | str:
-    url = f"{UPSTREAM_BASE_GRAPHQL}{path}"
-
-    logger.info(f"upstream2_get {url} {params}")
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, params=params)
-        if r.status_code >= 400:
-            raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
-        ctype = r.headers.get("content-type", "")
-        return r.json() if "application/json" in ctype else r.text
-
 
 def bbox_around_point_nm(lon: float, lat: float, radius_nm: float) -> Tuple[float, float, float, float]:
     radius_km = radius_nm * 1.852
@@ -311,16 +301,18 @@ app = FastAPI(
 async def health(request: Request):
     ok, detail = True, "ok"
     logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
+    meta = GovernanceMeta(
+            source=APP_NAME,
+            endpoint=fq(request),
+            fetchedAt=now_iso(),
+            version=APP_VERSION)
+    
     return JSONResponse({
         "status": "ok" if ok else "degraded",
         "version": APP_VERSION,
         "upstream": UPSTREAM_BASE,
         "detail": detail,
-        "meta": GovernanceMeta(
-            source=APP_NAME,
-            endpoint=fq(request),
-            fetchedAt=now_iso(),
-            version=APP_VERSION)
+        "meta": meta.model_dump()
     })
 
 # ----- AOI endpoints -----
@@ -355,31 +347,6 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
             "version": APP_VERSION,
         },
     })
-
-# ----- Vessel search -----
-@app.get("/ais/vessels/search", tags=["Vessels"])
-async def vessels_search(
-    request: Request,
-    shipname: Optional[str] = Query(None, description="Vessel name (full or partial)"),
-    mmsi: Optional[str] = Query(None, description="Maritime Mobile Service Identity"),
-    imo: Optional[str] = Query(None, description="IMO number")
-):
-    apikey = AIS_SHIPSEARCH_KEY
-    params: Dict[str, Any] = {}
-    if shipname: params["shipname"] = shipname
-    if mmsi:     params["mmsi"] = mmsi
-    if imo:      params["imo"] = imo
-    params['protocol'] = 'jsono'
-    payload = await upstream_get(f"/shipsearch/{apikey}", params)
-    meta = GovernanceMeta(
-        source=APP_NAME,
-        endpoint=fq(request),
-        upstreamEndpoint=upstream_template("/shipsearch/{api_key}"),
-        variablesHash=vhash(params),
-        fetchedAt=now_iso(),
-        version=APP_VERSION,
-    )
-    return JSONResponse({"nodes": payload, "meta": meta.dict()})
 
 # ----- Vessels in AOI -----
 @app.get("/ais/vessels/aoi", tags=["Vessels"])
@@ -531,10 +498,10 @@ async def vessel_info(
         version=APP_VERSION,
     )
     nodes = payload['data']['vessels']['nodes']
-    return JSONResponse({"nodes":nodes, "meta": meta.dict()})
+    return JSONResponse({"nodes":nodes, "meta": meta.model_dump()})
 
 # ----- Vessel info -----
-@app.get("/ais//vessel/photo", tags=["Vessels"])
+@app.get("/ais/vessel/photo", tags=["Vessels"])
 async def vessel_photo(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provide vessel id"),
@@ -558,7 +525,7 @@ async def vessel_photo(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    return JSONResponse({"node": payload, "meta": meta.dict()})
+    return JSONResponse({"node": payload, "meta": meta.model_dump()})
 
 # ----- Vessel track -----
 @app.get("/ais/vessel/track", tags=["Tracks"])
@@ -567,18 +534,20 @@ async def vessel_track(
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
     mmsi: Optional[str]    = Query(None, description="Maritime Mobile Service Identity"),
     imo: Optional[str]     = Query(None, description="IMO number"),
-    fromdt: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
-    todt: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
-    timespan: Optional[int]= Query(None, description="Minutes back (alternative to from/todt)")
+    fromdate: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    days: Optional[int]= Query(None, description="The number of days, starting from the time of request and going backwards")
 ):
-    apikey = AIS_EXPORTVESSELS_KEY
+    apikey = AIS_EXPORTVESSELTRACK_KEY
     params = make_identifier_params(ship_id, mmsi, imo)
-    params['protocol'] = 'json'
+    params['protocol'] = 'jsono'
     params['v'] = 3
+    params['msgtype'] = 'simple'
 
-    if fromdt:   params["from"] = fromdt
-    if todt:     params["to"]   = todt
-    if timespan: params["timespan"] = timespan
+    if fromdate:   params["fromdate"] = fromdate
+    if todate:     params["todate"]   = todate
+    if days: params["days"] = days
+
     payload = await upstream_get(f"/exportvesseltrack/{apikey}", params)
     meta = GovernanceMeta(
         source=APP_NAME,
@@ -588,4 +557,4 @@ async def vessel_track(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    return JSONResponse({"nodes": payload, "meta": meta.dict()})
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})

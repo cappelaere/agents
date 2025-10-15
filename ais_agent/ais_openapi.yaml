@@ -18,7 +18,7 @@ info:
     \ (e.g., MMSI vs IMO), call `/vessel/info` to resolve.\n- Use the smallest `limit`\
     \ that satisfies the user task; paginate with `cursor`/`offset` if available.\n\
     \n### Determinism for Tools\nWhen this spec is used as a tool by an LLM:\n- Prefer\
-    \ endpoints with explicit filters (e.g., `/vessels/search`) before broad listings.\n\
+    \ endpoints with explicit filters (e.g., `/vessels/info`) before broad listings.\n\
     - Always include units (km, nm, UTC timestamps) where applicable.\n- Validate\
     \ geographic inputs (`-90 \u2264 lat \u2264 90`, `-180 \u2264 lon \u2264 180`).\n\
     \n### Timestamps & Timezones\nUnless otherwise stated, all timestamps are **UTC**\
@@ -30,6 +30,7 @@ info:
   license:
     name: Apache 2.0
     url: https://www.apache.org/licenses/LICENSE-2.0.html
+
 paths:
   /health:
     get:
@@ -122,6 +123,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /aoi:
     get:
       tags:
@@ -231,6 +233,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /aoi/{aoi_id}:
     get:
       tags:
@@ -343,162 +346,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
-  /vessels/search:
-    get:
-      tags:
-      - Vessels
-      summary: Vessels Search
-      operationId: vessels_search_vessels_search_get
-      parameters:
-      - name: shipname
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Vessel name (full or partial)
-          title: Shipname
-        description: Vessel name (full or partial)
-      - name: mmsi
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: Maritime Mobile Service Identity
-          title: Mmsi
-        description: Maritime Mobile Service Identity
-      - name: imo
-        in: query
-        required: false
-        schema:
-          anyOf:
-          - type: string
-          - type: 'null'
-          description: IMO number
-          title: Imo
-        description: IMO number
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-              example:
-                count: 1
-                limit: 25
-                offset: 0
-                results:
-                - &id002
-                  mmsi: '366123456'
-                  imo: '9276651'
-                  name: PACIFIC VOYAGER
-                  call_sign: WDC1234
-                  flag: US
-                  type: tanker
-                  length_m: 250.0
-                  beam_m: 42.0
-                  draught_m: 12.1
-                  ais_class: A
-                  position:
-                    lat: 64.4201
-                    lon: -174.3916
-                    sog_knots: 12.3
-                    cog_deg: 277.4
-                    timestamp: '2025-10-13T14:02:11Z'
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-        '400':
-          description: Bad request
-          content:
-            application/json:
-              example:
-                error:
-                  code: 400
-                  message: Bad request
-                  details: See parameter validation notes.
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-        '404':
-          description: Not found
-          content:
-            application/json:
-              example:
-                error:
-                  code: 404
-                  message: Not found
-                  details: See parameter validation notes.
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-        '429':
-          $ref: '#/components/responses/Error429'
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-        '500':
-          $ref: '#/components/responses/Error5xx'
-          headers:
-            X-RateLimit-Remaining:
-              schema:
-                type: integer
-              description: Remaining requests in the window.
-            X-RateLimit-Reset:
-              schema:
-                type: integer
-              description: Unix epoch when the limit resets.
-      description: Filter vessels by identifiers such as `mmsi`, `imo`, `name`, `call_sign`,
-        or `flag`. Combine filters to narrow results. Pagination via `limit` and `offset`.
-      x-llm-notes:
-        retry_policy: Do not retry non-429/5xx. For 429, back off using 'Retry-After'
-          header if present.
-        minimal_params: Provide only required parameters; add optional filters to
-          improve precision.
-        output_parsimony: Request small 'limit' and elide unused fields when rendering
-          to the user.
+  
   /vessels/aoi:
     get:
       tags:
@@ -658,6 +506,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /vessels/nearby:
     get:
       tags:
@@ -859,6 +708,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /vessel/info:
     get:
       tags:
@@ -994,6 +844,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /vessel/photo:
     get:
       tags:
@@ -1134,6 +985,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+  
   /vessel/track:
     get:
       tags:
@@ -1171,7 +1023,7 @@ paths:
           description: IMO number
           title: Imo
         description: IMO number
-      - name: fromdt
+      - name: fromdate
         in: query
         required: false
         schema:
@@ -1179,9 +1031,9 @@ paths:
           - type: string
           - type: 'null'
           description: UTC start, e.g., 2025-09-01 00:00
-          title: Fromdt
+          title: Fromdate
         description: UTC start, e.g., 2025-09-01 00:00
-      - name: todt
+      - name: todate
         in: query
         required: false
         schema:
@@ -1189,18 +1041,22 @@ paths:
           - type: string
           - type: 'null'
           description: UTC end, e.g., 2025-09-02 00:00
-          title: Todt
+          title: Todate
         description: UTC end, e.g., 2025-09-02 00:00
-      - name: timespan
+      - name: days
         in: query
         required: false
         schema:
           anyOf:
           - type: integer
           - type: 'null'
-          description: Minutes back (alternative to from/todt)
-          title: Timespan
-        description: Minutes back (alternative to from/todt)
+          description: "The number of days, starting from the time of request and going backwards, \
+            for which the response should look for position data\
+            \nMaximum value is 190 (days)"
+          title: days
+        description: "The number of days, starting from the time of request and going backwards, \
+            for which the response should look for position data\
+            \nMaximum value is 190 (days)"
       responses:
         '200':
           description: Successful Response
@@ -1319,6 +1175,7 @@ paths:
           improve precision.
         output_parsimony: Request small 'limit' and elide unused fields when rendering
           to the user.
+
 components:
   schemas:
     HTTPValidationError:
