@@ -27,6 +27,11 @@ curl -s "$BASE/vessel/info?shipname=BOSS" | jq .
 # Vessel track — by IMO within a time window
 curl -s "$BASE/vessel/track?imo=9538907&fromdt=2025-09-01%2000:00&todt=2025-09-02%2000:00" | jq .
 
+curl -s "$BASE/vessel/track?ship_id=307571&protocol=jsono&msgtype=simple&v=3&fromdate=2025-09-01&todate=2025-10-10" | jq .
+
+https://services.marinetraffic.com/api/exportvesseltrack/c49b0d8a02dc441b8a75b7a3bf32d216fdd13032?shipid=307571&protocol=jsono&msgtype=simple&v=3&fromdate=2025-09-01&todate=2025-10-10
+https://services.marinetraffic.com/api/exportvesseltrack/fd74c58e32b15115a3d78b467cc6877c8f9746b2?shipid=307571&protocol=jsono&v=3&msgtype=simple 
+
 # Vessel track — by ship_id with a timespan (last 12 hours)
 curl -s "$BASE/vessel/track?ship_id=1234567&timespan=720" | jq .
 
