@@ -1,0 +1,123 @@
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Arctic Map Agent</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <style>
+      html, body { margin:0; height:100%; background:#0b1220; color:#e9edf5; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      header { padding: 12px 16px; border-bottom: 1px solid #1f2a44; }
+      #map { position:absolute; top:56px; left:0; right:0; bottom:0; }
+      .badge { display:inline-block; padding:2px 8px; border-radius: 999px; background:#1f2a44; color:#cdd7f1; font-size:12px; }
+      .legend { position:absolute; right:16px; top:72px; background:#0f172a; padding:10px 12px; border-radius:10px; box-shadow: 0 4px 16px rgba(0,0,0,0.3); border: 1px solid #1f2a44;}
+      .legend h4 { margin:0 0 8px 0; font-size:13px; font-weight:600;}
+      .legend p { margin:0; font-size:12px; color:#cdd7f1;}
+      .toast { position: absolute; left: 50%; transform: translateX(-50%); top: 72px; background:#0f172a; border:1px solid #1f2a44; color:#e9edf5; padding:8px 12px; border-radius:8px; display:none;}
+      .leaflet-container { background: #0b1220; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Arctic Map Agent</strong>
+      <span class="badge">WebSocket live</span>
+    </header>
+    <div id="map"></div>
+    <div class="legend">
+      <h4>Live GeoJSON</h4>
+      <p>POST to <code>/ingest</code> and features appear here in real time.</p>
+    </div>
+    <div id="toast" class="toast"></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"
+    ></script>
+    <script>
+      const map = L.map('map', {
+        minZoom: 2,
+        worldCopyJump: true,
+      }).setView([75, -150], 3);
+
+      // OSM tiles (for production, consider your own tile provider w/ SLA)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Keep a single GeoJSON layer and replace its data on updates
+      let liveLayer = L.geoJSON({ "type": "FeatureCollection", "features": [] }, {
+        pointToLayer: (feature, latlng) => L.circleMarker(latlng, { radius: 5, weight: 1 }),
+        style: (feature) => ({
+          weight: 2,
+          opacity: 1,
+          fillOpacity: feature.geometry && feature.geometry.type === 'Polygon' ? 0.3 : 0.7
+        }),
+        onEachFeature: (feature, layer) => {
+          const p = feature.properties || {};
+          const name = p.name || p.title || 'Feature';
+          const details = Object.entries(p).map(([k,v]) => `<div><b>${k}</b>: ${v}</div>`).join('');
+          layer.bindPopup(`<b>${name}</b>${details ? '<hr/>' + details : ''}`);
+        }
+      }).addTo(map);
+
+      function updateData(geojson) {
+        liveLayer.clearLayers();
+        liveLayer.addData(geojson);
+        try {
+          // Fit bounds if possible
+          if (geojson.type === 'FeatureCollection' && geojson.features && geojson.features.length) {
+            const b = turf.bbox(geojson);
+            if (b && b.every(Number.isFinite)) {
+              map.fitBounds([[b[1], b[0]], [b[3], b[2]]], { padding: [40, 40] });
+            }
+          } else if (geojson.type === 'Feature' || geojson.type === 'Point') {
+            // compute bbox for a single feature if needed
+            const fc = geojson.type === 'Feature' ? { type: 'FeatureCollection', features: [geojson] } : turf.featureCollection([turf.point(geojson.coordinates)]);
+            const b = turf.bbox(fc);
+            if (b && b.every(Number.isFinite)) {
+              map.fitBounds([[b[1], b[0]], [b[3], b[2]]], { padding: [40, 40] });
+            }
+          }
+        } catch (e) {
+          console.warn('bbox/fit error', e);
+        }
+      }
+
+      const wsProtocol = (location.protocol === "https:") ? "wss" : "ws";
+      const wsUrl = `${wsProtocol}://${location.host}/ws`;
+      const ws = new WebSocket(wsUrl);
+
+      ws.onmessage = (evt) => {
+        try {
+          const payload = JSON.parse(evt.data);
+          updateData(payload);
+          showToast(`Received GeoJSON: ${payload.type}${payload.features ? ' (' + payload.features.length + ' features)' : ''}`);
+        } catch (e) {
+          console.error("Invalid message", e);
+        }
+      };
+
+      ws.onopen = () => showToast("WebSocket connected");
+      ws.onclose = () => showToast("WebSocket disconnected");
+
+      function showToast(msg) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.style.display = 'block';
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
+      }
+    </script>
+  </body>
+</html>

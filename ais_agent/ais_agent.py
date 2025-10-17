@@ -29,11 +29,11 @@ logger.addHandler(handler)
 logger.setLevel(LOG_LEVEL)
 logger.info("***** Starting logger...")
 
-APP_NAME                = "ais_agent"
-APP_VERSION             = "0.2.0"
-UPSTREAM_BASE           = os.getenv("AIS_UPSTREAM_BASE", "https://services.marinetraffic.com/api")
-UPSTREAM_BASE_GRAPHQL   = os.getenv("AIS_UPSTREAM_BASE_GRAPHQL", "https://api.kpler.marinetraffic.com/v2/vessels/graphql")
-AOI_PATH                = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_aois.geojson")
+APP_NAME                    = "ais_agent"
+APP_VERSION                 = "0.2.0"
+UPSTREAM_BASE               = os.getenv("AIS_UPSTREAM_BASE", "https://services.marinetraffic.com/api")
+UPSTREAM_BASE_GRAPHQL       = os.getenv("AIS_UPSTREAM_BASE_GRAPHQL", "https://api.kpler.marinetraffic.com/v2/vessels/graphql")
+AOI_PATH                    = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_aois.geojson")
 
 ENV_KEY                     = os.getenv("AIS_EXPORTVESSELS_KEY", "")
 AIS_EXPORTVESSELS_KEY       = os.getenv("AIS_EXPORTVESSELS_KEY", "")
@@ -44,6 +44,7 @@ AIS_VESSELPHOTO_KEY         = os.getenv("AIS_VESSELPHOTO_KEY", "")
 AIS_PORTCALLS_KEY           = os.getenv("AIS_PORTCALLS_KEY", "")
 AIS_VESSELEVENTS_KEY        = os.getenv("AIS_VESSELEVENTS_KEY", "")
 AIS_OWNERSHIP_KEY           = os.getenv("AIS_OWNERSHIP_KEY", "")
+AIS_ROUTING_KEY             = os.getenv("AIS_ROUTING_KEY", "")
 
 # ----- Ship types (per swagger.json) -----
 SHIPTYPE_CODE_SET = {2, 4, 6, 7, 8}
@@ -553,6 +554,161 @@ async def vessel_track(
         source=APP_NAME,
         endpoint=fq(request),
         upstreamEndpoint=upstream_template("/exportvesseltrack/{api_key}"),
+        variablesHash=vhash(params),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+
+# ----- Vessel Events -----
+@app.get("/ais/vessel/events", tags=["Events"])
+async def vessel_events(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    mmsi: Optional[str]    = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str]     = Query(None, description="IMO number"),
+    fromdate: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
+):
+    apikey = AIS_VESSELEVENTS_KEY
+    params = make_identifier_params(ship_id, mmsi, imo)
+    params['protocol'] = 'jsono'
+    params['v'] = 2
+
+    if fromdate:   params["fromdate"] = fromdate
+    if todate:     params["todate"]   = todate
+    if timespan: params["timespan"] = timespan
+
+    payload = await upstream_get(f"/vesselevents/{apikey}", params)
+    meta = GovernanceMeta(
+        source=APP_NAME,
+        endpoint=fq(request),
+        upstreamEndpoint=upstream_template("/vesselevents/{api_key}"),
+        variablesHash=vhash(params),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+
+
+# ----- Single Vessel Portcalls -----
+@app.get("/ais/vessel/portcalls", tags=["PortCalls"])
+async def vessel_portcalls(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    fromdate: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
+):
+    apikey = AIS_PORTCALLS_KEY 
+    params = {
+        'shipid': ship_id,
+        'protocol': 'jsono',
+        'v': 6,
+        'msgtype': 'simple'
+    }
+  
+    if fromdate:   params["fromdate"] = fromdate
+    if todate:     params["todate"]   = todate
+    if timespan: params["timespan"] = timespan
+
+    payload = await upstream_get(f"/portcalls/{apikey}", params)
+    meta = GovernanceMeta(
+        source=APP_NAME,
+        endpoint=fq(request),
+        upstreamEndpoint=upstream_template("/portcalls/{api_key}"),
+        variablesHash=vhash(params),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+
+# ----- Portcalls -----
+@app.get("/ais/portcalls", tags=["PortCalls"])
+async def portcalls(
+    request: Request,
+    port_id: Optional[str] = Query(None, description="Port id or UN/LOCODE"),
+    fromdate: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
+):
+    apikey = AIS_PORTCALLS_KEY 
+    params = {
+        'portid': port_id,
+        'protocol': 'jsono',
+        'v': 6,
+        'msgtype': 'simple'
+    }
+  
+    if fromdate:   params["fromdate"] = fromdate
+    if todate:     params["todate"]   = todate
+    if timespan: params["timespan"] = timespan
+
+    payload = await upstream_get(f"/portcalls/{apikey}", params)
+    meta = GovernanceMeta(
+        source=APP_NAME,
+        endpoint=fq(request),
+        upstreamEndpoint=upstream_template("/portcalls/{api_key}"),
+        variablesHash=vhash(params),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+
+# ----- Routing -----
+@app.get("/ais/routing/distance_to_port", tags=["Routing"])
+async def distance_port(
+    request: Request,
+    start_port: Optional[str]  = Query(None, description="Starting Port UN/LOCODE"),
+    end_port: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
+):
+    apikey = AIS_ROUTING_KEY 
+    params = {
+        'port_start_id': start_port,
+        'port_target_id': end_port,
+        'protocol': 'jsono',
+        'msgtype': 'extended'
+    }
+
+    payload = await upstream_get(f"/exportroutes/{apikey}", params)
+    meta = GovernanceMeta(
+        source=APP_NAME,
+        endpoint=fq(request),
+        upstreamEndpoint=upstream_template("/exportroutes/{api_key}"),
+        variablesHash=vhash(params),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+
+@app.get("/ais/routing/vessel_route_to_port", tags=["Routing"])
+async def distance_port(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    imo: Optional[str] = Query(None, description="Provider vessel imo"),
+    mmsi: Optional[str] = Query(None, description="Provider vessel mmsi"),
+    port_id: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
+):
+    apikey = AIS_ROUTING_KEY 
+    params = {
+        'port_target_id': port_id,
+        'protocol': 'jsono',
+        'msgtype': 'extended'
+    }
+
+    if ship_id:
+        params['shipid'] = ship_id
+    if imo:
+        params['imo'] = imo
+    if mmsi:
+        params['mmsi'] = mmsi
+
+    payload = await upstream_get(f"/exportroutes/{apikey}", params)
+    meta = GovernanceMeta(
+        source=APP_NAME,
+        endpoint=fq(request),
+        upstreamEndpoint=upstream_template("/exportroutes/{api_key}"),
         variablesHash=vhash(params),
         fetchedAt=now_iso(),
         version=APP_VERSION,

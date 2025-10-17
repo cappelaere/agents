@@ -35,3 +35,33 @@ https://services.marinetraffic.com/api/exportvesseltrack/fd74c58e32b15115a3d78b4
 # Vessel track — by ship_id with a timespan (last 12 hours)
 curl -s "$BASE/vessel/track?ship_id=1234567&timespan=720" | jq .
 
+# Vessel portcalls by ship id
+curl -s "$BASE/vessel/portcalls?ship_id=1234567&timespan=720" | jq .
+
+curl -s "https://services.marinetraffic.com/api/portcalls/3a06b272b24a976ee9bd4c874443572a4c4f2b3e?shipid=675872timespan%3D720&protocol=jsono&v=6&msgtype=simple" | jq .
+
+# Vessel events — by ship_id with a timespan (last 12 hours)
+curl -s "$BASE/vessel/events?mmsi=338718000" | jq .
+
+# Routing distance from port to port
+curl -s "$BASE/routing/distance_to_port?start_port=JPTOK&end_port=USHOU" | jq .
+
+curl "https://services.marinetraffic.com/api/vesselevents/d5794deb0dd5cc5364def3afcc905373b22c494b?mmsi=338718000&protocol=jsono&v=2"
+
+curl "https://services.marinetraffic.com/api/portcalls/3a06b272b24a976ee9bd4c874443572a4c4f2b3e?timespan=2&msgtype=simple&portid=NLAMS&protocol=jsono&v=6" | jq
+
+
+curl -s "$BASE/portcalls?port_id=USANC&timespan=2880" | jq .
+curl "https://services.marinetraffic.com/api/portcalls/3a06b272b24a976ee9bd4c874443572a4c4f2b3e?portid=USANC&protocol=jsono&v=6&msgtype=simple&timespan=2880" | jq
+
+https://services.marinetraffic.com/api/portcalls/3a06b272b24a976ee9bd4c874443572a4c4f2b3e?portid=USANC&protocoll=jsono&v=6&msgtype=simple&timespan=2880
+
+# Check ships in Chukchi Sea
+curl -s "$BASE/vessels/aoi?aoi_id=chukchi_sea_ak&timespan=1440" | jq .
+
+curl -s "$BASE/routing/distance_to_port?start_port=USACP&end_port=USANC" | jq .
+
+# Distance of one ship to Wainwright AK (USAIN) to Prudhoe Bay (USSCC)
+curl -s "$BASE/routing/distance_to_port?start_port=USANC&end_port=USSCC" | jq .
+
+curl -s "https://services.marinetraffic.com/api/exportroutes/3a1ad4951588c7b215acd23029fea867ea97b9c5?port_target_id=USANC&protocol=jsono&msgtype=extended&shipid=304642"

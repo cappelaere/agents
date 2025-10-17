@@ -16,3 +16,6 @@ export AIS_SHIPSEARCH_KEY=""
 export AIS_VESSELPHOTO_KEY=""
 export AIS_PORTCALLS_KEY=""
 export AIS_VESSELEVENTS_KEY=""
+export AIS_ROUTING_KEY=""
+
+export CSV_PATH="./csv/2024-2 UNLOCODE CodeListPart3.csv"
