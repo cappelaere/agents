@@ -1,0 +1,228 @@
+openapi: 3.1.0
+info:
+  title: UN/LOCODE Lookup API
+  version: "3.2.0"
+  description: |
+    Resolve UN/LOCODEs from a port name (+ optional state, country).
+    CSV-backed, supports exact/substring/fuzzy search with RapidFuzz when available.
+  contact:
+    name: API Owner
+    email: you@example.com
+servers:
+  - url: http://{host}/{basepath}
+    description: Local
+    variables:
+      host:
+        default: localhost:8110
+        description: Hostname and port
+      basePath:
+        default: seaice
+        description: Base path for all endpoints
+tags:
+  - name: meta
+    description: Health and configuration
+  - name: debug
+    description: Data inspection helpers
+  - name: lookup
+    description: Search endpoints
+components:
+  schemas:
+    MatchResult:
+      type: object
+      properties:
+        port_name: { type: string, nullable: true, example: "Al Azaiba" }
+        state: { type: string, nullable: true, example: "MA" }
+        country:
+          type: string
+          nullable: true
+          description: ISO 3166-1 alpha-2 country code
+          pattern: "^[A-Z]{2}$"
+          example: "OM"
+        unlocode:
+          type: string
+          nullable: true
+          description: UN/LOCODE (2-letter country + 3-letter location)
+          pattern: "^[A-Z]{5}$"
+          example: "OMALA"
+        score:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: Fuzzy similarity (0–100)
+          example: 95
+    RowSample:
+      type: object
+      properties:
+        port_name: { type: string, nullable: true }
+        state: { type: string, nullable: true }
+        country: { type: string, nullable: true }
+        unlocode: { type: string, nullable: true }
+        norm_port_name: { type: string, nullable: true }
+        norm_state: { type: string, nullable: true }
+        norm_country: { type: string, nullable: true }
+        norm_join: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error: { type: string, example: "BadRequest" }
+        message: { type: string, example: "Parameter 'name' is required." }
+        details: { type: object, nullable: true }
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServerError:
+      description: Internal error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+paths:
+  /health:
+    get:
+      tags: [meta]
+      summary: Service health and configuration snapshot
+      description: Returns liveness info, dataset size, active fuzzy backend, and defaults.
+      operationId: ports_health
+      responses:
+        "200":
+          description: Health info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  version: { type: string, example: "3.2.0" }
+                  rows: { type: integer, example: 15732 }
+                  csv_path: { type: string, example: /abs/path/ports.csv }
+                  fuzzy_backend: { type: string, example: rapidfuzz }
+                  default_limit: { type: integer, example: 5 }
+                  default_score: { type: integer, example: 80 }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /columns:
+    get:
+      tags: [debug]
+      summary: Show canonical columns and a 3-row sample
+      operationId: ports_columns
+      responses:
+        "200":
+          description: Columns + sample
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  columns:
+                    type: array
+                    items: { type: string }
+                    example: [port_name, state, country, unlocode, norm_port_name, norm_state, norm_country, norm_join]
+                  sample:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RowSample"
+        "500": { $ref: "#/components/responses/ServerError" }
+  /peek:
+    get:
+      tags: [debug]
+      summary: Return the first n mapped rows
+      operationId: ports_peek
+      parameters:
+        - in: query
+          name: n
+          schema: { type: integer, minimum: 1, maximum: 50, default: 5 }
+          description: Number of rows to return (1–50)
+      responses:
+        "200":
+          description: First n rows
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RowSample"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /reload:
+    post:
+      tags: [debug]
+      summary: Clear cache and reload CSV using current environment variables
+      operationId: ports_reload
+      responses:
+        "200":
+          description: Reload summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reloaded: { type: boolean, example: true }
+                  rows: { type: integer, example: 15732 }
+        "500": { $ref: "#/components/responses/ServerError" }
+  /search:
+    get:
+      tags: [lookup]
+      summary: Search ports by name (exact/substring/fuzzy), optionally filtered by state/country
+      description: >
+        - If `exact=true`, performs an exact normalized name match on the filtered subset.
+        - Otherwise tries a substring match first, then weighted fuzzy matching (name >> state > country).
+      operationId: ports_search
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema: { type: string, minLength: 1 }
+          description: Port name to search
+          example: Al Azaiba
+        - in: query
+          name: state
+          schema: { type: string, minLength: 1 }
+          description: State/sub-division filter (normalized exact filter)
+          example: MA
+        - in: query
+          name: country
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            pattern: "^[A-Z]{2}$"
+          description: ISO alpha-2 country filter (normalized exact filter)
+          example: OM
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 50, default: 5 }
+          description: Maximum number of results
+          example: 5
+        - in: query
+          name: min_score
+          schema: { type: integer, minimum: 0, maximum: 100, default: 80 }
+          description: Minimum fuzzy similarity score
+          example: 70
+        - in: query
+          name: exact
+          schema: { type: boolean, default: false }
+          description: Exact normalized name match only (skips fuzzy)
+      responses:
+        "200":
+          description: Matching ports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MatchResult"
+              examples:
+                match:
+                  summary: Example match
+                  value:
+                    - port_name: "Al Azaiba"
+                      state: "MA"
+                      country: "OM"
+                      unlocode: "OMALA"
+                      score: 96
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "422": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/ServerError" }
