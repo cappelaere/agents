@@ -18,7 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY metoc_openapi.yaml ./metoc_openapi.yaml
 COPY metoc_agent.py ./metoc_agent.py
 
-#COPY ../env.sh ./env.sh
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 
@@ -31,7 +30,7 @@ ENV PORT=8080
 # Example: START_CMD="ais-agent --openapi ${OPENAPI_FILE} --host ${HOST} --port ${PORT}"
 ENV START_CMD="uvicorn metoc_agent:app --host ${HOST} --port ${PORT} --reload"
 
-EXPOSE 8100
+EXPOSE 8080
 
 # Optional healthcheck; disable or adjust path if your agent differs
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

@@ -64,11 +64,6 @@ manager = ConnectionManager()
 async def health():
     return {"status": "ok"}
 
-# Optional legacy path if you ever used /healthz elsewhere
-@app.get("/healthz")
-async def healthz():
-    return {"status": "ok"}
-
 @app.get("/", response_class=HTMLResponse)
 async def arctic_map(request: Request):
     """

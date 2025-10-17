@@ -104,16 +104,22 @@ chmod 600 ~/.netrc
 docker compose build metoc_agent
 docker compose build seaice_agent
 docker compose build ais_agent
+docker compose build port_agent
+docker compose build map_agent
 
 # Run agents
 docker compose up --no-deps -d metoc_agent
 docker compose up --no-deps -d seaice_agent
 docker compose up --no-deps -d ais_agent
+docker compose up --no-deps -d ports_agent
+docker compose up --no-deps -d map_agent
 
 # follow live logs for a single service
 docker compose logs -f metoc_agent
 docker compose logs -f seance_agent
-docker compose logs -f his_agent
+docker compose logs -f ais_agent
+docker compose logs -f ports_agent
+docker compose logs -f map_agent
 
 # last 200 lines + timestamps
 docker compose logs --tail=200 --timestamps metoc_agent

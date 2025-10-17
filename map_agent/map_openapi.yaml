@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Arctic Map Agent (Leaflet) API
+  version: 1.0.0
+  description: |
+    API for a lightweight “map agent” that displays **GeoJSON** on a Leaflet web page.
+
+    ## What this service does
+    - `POST /ingest` accepts **GeoJSON** (prefer **FeatureCollection**) and immediately pushes it to all connected browsers via WebSocket, updating the live map.
+    - `GET /` serves the web UI (Leaflet map pre-centered on the Arctic).
+    - `GET /health` and `GET /healthz` are simple liveness probes.
+    - `GET /version` reports build metadata.
+    - `WS /ws` is the WebSocket endpoint the page uses to receive live GeoJSON updates (documented here for awareness).
+
+    ## Guidance for LLMs and tool callers
+    - **Primary action**: Use `POST /ingest` to display things on the map.
+    - **Payload format**: Send valid **GeoJSON** in **WGS-84** (`[longitude, latitude]`) coordinates.
+      - Preferred: a `FeatureCollection` containing one or more `Feature` objects.
+      - Also accepted: a single `Feature` or a bare Geometry (e.g., `Point`, `Polygon`).
+    - **Content-Type**: `application/geo+json` (preferred) or `application/json`.
+    - **Idempotency**: Each call **replaces** the current in-page dataset (the map shows only the most recently ingested GeoJSON).
+    - **Good prompts → good results**:
+      - “Show these vessels as points with `name` and `mmsi` properties.”
+      - “Render this AOI polygon and also include two waypoints as points.”
+    - **Styling** (client side, FYI): Points are rendered as circle markers; polygons with semi-transparent fill; lines with medium strokes. Popups show all `properties`.
+
+servers:
+  - url: https://{host}
+    description: production
+    variables:
+      host:
+        default: localhost:8200
+        description: Hostname and port
+  
+tags:
+  - name: Ingest
+    description: Send GeoJSON for immediate display on the live map
+  - name: Health
+    description: Liveness and basic status
+  - name: UI
+    description: Browser map application
+  - name: Meta
+    description: Version/build metadata
+  - name: Realtime
+    description: WebSocket used by the UI to receive updates (documented for awareness)
+
+paths:
+  /ingest:
+    post:
+      tags: [Ingest]
+      summary: Ingest GeoJSON and broadcast to the live Leaflet map
+      operationId: ingestGeoJSON
+      description: |
+        Accepts **GeoJSON** and broadcasts it to all connected web clients. The browser’s map immediately updates to show the provided data.
+
+        **Behavior**
+        - Replaces previously displayed data with this new payload.
+        - If a `FeatureCollection` has any features, the client auto-zooms to the dataset’s bounding box.
+        - Properties are displayed in popups; include meaningful fields (e.g., `name`, `mmsi`, `id`, `timestamp`).
+
+        **Coordinate system**
+        - Use **WGS-84** longitude/latitude order: `[lon, lat]`.
+
+        **Payload size**
+        - Keep payloads modest (hundreds to low thousands of features). For very large datasets, split across multiple calls.
+
+      requestBody:
+        required: true
+        content:
+          application/geo+json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/FeatureCollection'
+                - $ref: '#/components/schemas/Feature'
+                - $ref: '#/components/schemas/Geometry'
+            examples:
+              featureCollection:
+                summary: Two vessels and an AOI polygon
+                value:
+                  type: FeatureCollection
+                  features:
+                    - type: Feature
+                      geometry: { type: Point, coordinates: [-150, 75] }
+                      properties: { name: "Vessel A", mmsi: "123" }
+                    - type: Feature
+                      geometry: { type: Point, coordinates: [-160, 78] }
+                      properties: { name: "Vessel B", mmsi: "456" }
+                    - type: Feature
+                      geometry:
+                        type: Polygon
+                        coordinates:
+                          - [[-170,72],[-160,72],[-160,74],[-170,74],[-170,72]]
+                      properties: { name: "AOI" }
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/FeatureCollection'
+                - $ref: '#/components/schemas/Feature'
+                - $ref: '#/components/schemas/Geometry'
+      responses:
+        '200':
+          description: Accepted and broadcast to all clients
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+                  features:
+                    type: integer
+                    nullable: true
+                    description: Number of features when a FeatureCollection was provided; otherwise null.
+              examples:
+                ok:
+                  value: { status: "ok", features: 3 }
+        '400':
+          description: Invalid payload (e.g., missing `type` or malformed GeoJSON)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                invalid:
+                  value: { error: "Invalid GeoJSON: missing 'type'" }
+
+  /:
+    get:
+      tags: [UI]
+      summary: Map UI
+      operationId: getMapUi
+      description: |
+        Serves the Leaflet web application. The page:
+        - Connects to `WS /ws` to receive live updates
+        - Starts with an Arctic-centered view
+        - Renders the most recently ingested GeoJSON
+      responses:
+        '200':
+          description: HTML map page
+          content:
+            text/html:
+              schema:
+                type: string
+
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      operationId: health
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+
+  /version:
+    get:
+      tags: [Meta]
+      summary: Version/build metadata
+      operationId: version
+      responses:
+        '200':
+          description: Build info (if available)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  app: { type: string, example: "Arctic Map Agent (Leaflet)" }
+                  version: { type: string, example: "0.1.0" }
+                  git_sha: { type: string, example: "abc1234" }
+                  build_time: { type: string, example: "2025-10-17T19:00:00Z" }
+
+  /ws:
+    get:
+      tags: [Realtime]
+      summary: WebSocket endpoint (used by the UI)
+      operationId: websocket
+      description: |
+        **WebSocket** used by the browser to receive live GeoJSON.  
+        - The server may send periodic keep-alive frames like `{"type":"ping"}`; clients should **ignore** these for rendering.
+        - When valid GeoJSON arrives (FeatureCollection/Feature/Geometry), the UI replaces the current dataset and re-renders.
+
+        > Note: OpenAPI formally documents HTTP endpoints; this WebSocket path is included **for awareness**.
+
+      responses:
+        '101':
+          description: Protocol switch to WebSocket
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+
+    # --- GeoJSON core (concise but interoperable) ---
+    FeatureCollection:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [FeatureCollection]
+        features:
+          type: array
+          items:
+            $ref: '#/components/schemas/Feature'
+      required: [type, features]
+      description: |
+        A GeoJSON FeatureCollection. Prefer this shape for map updates.
+        The client auto-zooms to the bbox when at least one feature is present.
+
+    Feature:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [Feature]
+        geometry:
+          $ref: '#/components/schemas/Geometry'
+        properties:
+          type: object
+          description: Arbitrary key/value attributes. Shown in popups on the map.
+      required: [type, geometry]
+
+    Geometry:
+      oneOf:
+        - $ref: '#/components/schemas/Point'
+        - $ref: '#/components/schemas/MultiPoint'
+        - $ref: '#/components/schemas/LineString'
+        - $ref: '#/components/schemas/MultiLineString'
+        - $ref: '#/components/schemas/Polygon'
+        - $ref: '#/components/schemas/MultiPolygon'
+        - $ref: '#/components/schemas/GeometryCollection']
+
+    Point:
+      type: object
+      properties:
+        type: { type: string, enum: [Point] }
+        coordinates:
+          $ref: '#/components/schemas/Position'
+      required: [type, coordinates]
+
+    MultiPoint:
+      type: object
+      properties:
+        type: { type: string, enum: [MultiPoint] }
+        coordinates:
+          type: array
+          items: { $ref: '#/components/schemas/Position' }
+      required: [type, coordinates]
+
+    LineString:
+      type: object
+      properties:
+        type: { type: string, enum: [LineString] }
+        coordinates:
+          $ref: '#/components/schemas/LineStringCoords'
+      required: [type, coordinates]
+
+    MultiLineString:
+      type: object
+      properties:
+        type: { type: string, enum: [MultiLineString] }
+        coordinates:
+          type: array
+          items: { $ref: '#/components/schemas/LineStringCoords' }
+      required: [type, coordinates]
+
+    Polygon:
+      type: object
+      properties:
+        type: { type: string, enum: [Polygon] }
+        coordinates:
+          $ref: '#/components/schemas/PolygonCoords'
+      required: [type, coordinates]
+
+    MultiPolygon:
+      type: object
+      properties:
+        type: { type: string, enum: [MultiPolygon] }
+        coordinates:
+          type: array
+          items: { $ref: '#/components/schemas/PolygonCoords' }
+      required: [type, coordinates]
+
+    GeometryCollection:
+      type: object
+      properties:
+        type: { type: string, enum: [GeometryCollection] }
+        geometries:
+          type: array
+          items: { oneOf:
+            [ { $ref: '#/components/schemas/Point' },
+              { $ref: '#/components/schemas/MultiPoint' },
+              { $ref: '#/components/schemas/LineString' },
+              { $ref: '#/components/schemas/MultiLineString' },
+              { $ref: '#/components/schemas/Polygon' },
+              { $ref: '#/components/schemas/MultiPolygon' } ] }
+      required: [type, geometries]
+
+    # --- Shared coordinate types ---
+    Position:
+      type: array
+      minItems: 2
+      maxItems: 3
+      description: WGS-84 position as [longitude, latitude] or [longitude, latitude, elevation].
+      items:
+        type: number
+      example: [-150.0, 75.0]
+
+    LineStringCoords:
+      type: array
+      minItems: 2
+      items: { $ref: '#/components/schemas/Position' }
+
+    PolygonCoords:
+      type: array
+      minItems: 1
+      description: |
+        An array of linear rings. The first is the outer ring; subsequent rings (if any) are holes.
+        Each ring is an array of positions where the first and last positions are equivalent (closed).
+      items:
+        type: array
+        minItems: 4
+        items: { $ref: '#/components/schemas/Position' }
+
+x-codeSamples:
+  - lang: Bash (curl)
+    label: "Ingest a local GeoJSON file"
+    source: |
+      curl -X POST http://localhost:8200/ingest \
+        -H 'Content-Type: application/geo+json' \
+        --data-binary @features.geojson
+  - lang: PowerShell
+    label: "Ingest a local GeoJSON file (PowerShell)"
+    source: |
+      Invoke-WebRequest -Uri http://localhost:8200/ingest `
+        -Method Post `
+        -ContentType 'application/geo+json' `
+        -InFile .\features.geojson

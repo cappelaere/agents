@@ -30,6 +30,26 @@ services:
     secrets:
       - env
 
+  ports_agent:
+    build:
+      context: ./ports_agent
+    image: ports_agent:latest
+    container_name: ports_agent
+    ports:
+      - "8110:8110"
+    secrets:
+      - env
+
+  map_agent:
+    build:
+      context: ./map_agent
+    image: map_agent:latest
+    container_name: map_agent
+    ports:
+      - "8120:8120"
+    secrets:
+      - env
+
 secrets:
   env:
     file: ./.env.sh
