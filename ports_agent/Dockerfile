@@ -17,9 +17,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy runtime assets
 COPY ports_openapi.yaml ./ports_openapi.yaml
 COPY ports_agent.py ./ports_agent.py
-COPY ais_agent.py ./ais_agent.py
+COPY csv/ ./csv/
 
-#COPY env.sh ./env.sh
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
 

@@ -1,9 +1,14 @@
-BASE=http://localhost:8120
+BASE=http://$HOST:8120
 
-# Heahth
+# Health
 curl -s "$BASE/health" | jq .
 
 curl -s "$BASE/version" | jq .
+
+# to test the ui
+open browser: http://$BASE
+
+# and issue curl commands to display result son the map
 
 curl -X POST $BASE/ingest \
   -H 'Content-Type: application/json' \
@@ -20,3 +25,4 @@ curl -X POST $BASE/ingest \
 curl -X POST $BASE/ingest \
   -H 'Content-Type: application/json' \
   --data-binary @aois.geojson
+

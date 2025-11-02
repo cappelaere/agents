@@ -4,7 +4,7 @@
 uvicorn seaice_agent:app --port 8090
 ```
 bash
-BASE=http://localhost:8090
+BASE=http://$HOST:8090
 RID=$(uuidgen)   # or any string; optional
 
 

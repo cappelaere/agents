@@ -1,4 +1,4 @@
-BASE="http://localhost:8110/ports"
+BASE="http://$HOST:8110/ports"
 
 curl -s "$BASE/health" | jq
 

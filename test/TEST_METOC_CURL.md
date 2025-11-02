@@ -3,10 +3,16 @@
 ```
 uvicorn metoc_openmeteo_agent:app --port 8080
 ```
+or 
+```
+docker compose up --no-deps -d metoc_agent
+```
+BASE=http://$HOST:8080/metoc
+
 # 🧩 1. Health Check
 Verify the API is up and reachable:
 ```
-curl http://localhost:8080/metoc/healthz
+curl $BASE/health
 ```
 ✅ Expected:
 {"status":"ok"}
@@ -15,33 +21,33 @@ curl http://localhost:8080/metoc/healthz
 Convert place names ↔ coordinates using Open-Meteo’s geocoding service.
 a) Forward Geocoding (place → lat/lon)
 ```
-curl "http://localhost:8080/metoc/geocode/search?name=Thule&count=3"
+curl "$BASE/geocode/search?name=Thule&count=3"
 ```
 ✅ Returns JSON like:
 {"results":[{"name":"Thule Air Base","latitude":76.5,"longitude":-68.7, ...}]}
 
 # 🌬️ 3. Atmospheric Forecast (Open-Meteo)
 Fetch current weather or forecasts for a specific Arctic coordinate.
-curl "http://localhost:8080/metoc/atmosphere/forecast?lat=82.5&lon=-45&hourly=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min"
+curl "$BASE/atmosphere/forecast?lat=82.5&lon=-45&hourly=temperature_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min"
 ✅ Expected: hourly & daily arrays (temperature, wind, etc.).
 
 # 🕰️ 4. Historical Weather (Open-Meteo Archive)
 Retrieve historical atmospheric data (use UTC dates).
 ```
-curl "http://localhost:8080/metoc/atmosphere/archive?lat=82.5&lon=-45&start_date=2025-09-01&end_date=2025-10-08&hourly=temperature_2m,wind_speed_10m"
+curl "$BASE/atmosphere/archive?lat=82.5&lon=-45&start_date=2025-09-01&end_date=2025-10-08&hourly=temperature_2m,wind_speed_10m"
 ```
 
 # 🌊 5. Marine Forecast (Waves & SST)
 Get sea-state and sea surface temperature forecasts.
 ```
-curl "http://localhost:8080/metoc/marine/forecast?lat=78.2&lon=-160.5&hourly=wave_height,wave_direction,wave_period,swell_wave_height,sea_surface_temperature"
+curl "$BASE/marine/forecast?lat=78.2&lon=-160.5&hourly=wave_height,wave_direction,wave_period,swell_wave_height,sea_surface_temperature"
 ```
 
 # (Optional) shared vars
 
 ```
 bash
-BASE="http://localhost:8080/metoc"
+BASE="http://$HOST:8080/metoc"
 RID=$(uuidgen)   # or any string
 ```
 1) Health

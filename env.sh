@@ -3,7 +3,7 @@ export NSIDC_WMS_BASE="https://nsidc.org/api/mapservices?service=WMS&request=Get
 export NSIDC_WMS_LAYER="NSIDC:seaice_conc_daily_north"
 
 export NSIDC_DATA_DIR="$PWD/data"
-export NSIDC_OPENDAP_URL="$NSIC_DATA_DIR/sic_psn25_20250915_F17_icdr_v03r00.nc"
+export NSIDC_OPENDAP_URL="$NSIDC_DATA_DIR/sic_psn25_20250915_F17_icdr_v03r00.nc"
 export NSIDC_VAR_NAME="cdr_seaice_conc"
 export NSIDC_CRS="EPSG:3411"
 
@@ -19,3 +19,5 @@ export AIS_VESSELEVENTS_KEY=""
 export AIS_ROUTING_KEY=""
 
 export CSV_PATH="./csv/2024-2 UNLOCODE CodeListPart3.csv"
+
+export HOST=150.239.85.44

@@ -12,7 +12,7 @@ RUN chmod +x ./docker-entrypoint.sh
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ./
+COPY map_agent.py ./
 COPY templates ./templates
 COPY static ./static
 COPY map_openapi.yaml map_openapi.yaml

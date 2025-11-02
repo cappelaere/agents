@@ -7,8 +7,8 @@ services:
     container_name: metoc_agent
     ports:
       - "8080:8080"
-    secrets:
-        - env
+    env_file: ./.env.sh
+
 
   seaice_agent:
     build:
@@ -17,8 +17,8 @@ services:
     container_name: seaice_agent
     ports:
       - "8090:8090"
-    secrets:
-        - env
+    env_file: ./.env.sh
+
 
   ais_agent:
     build:
@@ -27,8 +27,7 @@ services:
     container_name: ais_agent
     ports:
       - "8100:8100"
-    secrets:
-      - env
+    env_file: ./.env.sh
 
   ports_agent:
     build:
@@ -37,9 +36,8 @@ services:
     container_name: ports_agent
     ports:
       - "8110:8110"
-    secrets:
-      - env
-
+    env_file: ./.env.sh
+    
   map_agent:
     build:
       context: ./map_agent
@@ -47,8 +45,7 @@ services:
     container_name: map_agent
     ports:
       - "8120:8120"
-    secrets:
-      - env
+    env_file: ./.env.sh
 
 secrets:
   env:

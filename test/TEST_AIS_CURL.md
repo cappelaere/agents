@@ -1,4 +1,4 @@
-BASE=http://localhost:8100/ais
+BASE=http://$HOST:8100/ais
 
 # Heahth
 curl -s "$BASE/health" | jq .
