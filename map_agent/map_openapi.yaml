@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Arctic Map Agent (Leaflet) API
   version: 1.0.0
@@ -25,12 +25,10 @@ info:
     - **Styling** (client side, FYI): Points are rendered as circle markers; polygons with semi-transparent fill; lines with medium strokes. Popups show all `properties`.
 
 servers:
-  - url: https://{host}
-    description: production
-    variables:
-      host:
-        default: localhost:8200
-        description: Hostname and port
+  - url: http://150.239.85.44:8200
+    description: Production server
+  - url: http://localhost:8200
+    description: local development
   
 tags:
   - name: Ingest

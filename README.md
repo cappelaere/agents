@@ -100,11 +100,14 @@ Store Earhtdata login in .netrc
 printf "machine urs.earthdata.nasa.gov login $USERNAME password $PASSWORD$\n" >> ~/.netrc
 chmod 600 ~/.netrc
 
+# ======================================================
+# Virtual Machine
+#
 # Build procedure
 docker compose build metoc_agent
 docker compose build seaice_agent
 docker compose build ais_agent
-docker compose build port_agent
+docker compose build ports_agent
 docker compose build map_agent
 
 # Run agents

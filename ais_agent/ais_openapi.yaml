@@ -1566,17 +1566,10 @@ x-llm-usage:
         start: '2025-10-10T00:00:00Z'
         end: '2025-10-13T23:59:59Z'
 servers:
-- url: https://{host}/{basePath}
-    description: Default
-    variables:
-      host:
-        default: localhost:8080
-        description: Hostname and port
-      basePath:
-        default: ais
-        description: Base path for all endpoints
+- url: http://150.239.85.44:8110/ais
+  description: Production Server
 - url: http://localhost:8100/ais
-    description: Local development
+  description: Local development
 tags:
 - name: Health
   description: Service health checks.

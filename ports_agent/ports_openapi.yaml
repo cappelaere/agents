@@ -9,15 +9,11 @@ info:
     name: API Owner
     email: you@example.com
 servers:
-  - url: http://{host}/{basepath}
-    description: Local
-    variables:
-      host:
-        default: localhost:8110
-        description: Hostname and port
-      basePath:
-        default: seaice
-        description: Base path for all endpoints
+  - url: http://150.239.85.44:8110/ports
+    description: Production server
+  - url: http://localhost:8110/ports
+    description: Local development
+  
 tags:
   - name: meta
     description: Health and configuration

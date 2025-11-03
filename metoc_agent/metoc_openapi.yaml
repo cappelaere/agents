@@ -1,4 +1,4 @@
-openapi: 3.0.3
+openapi: 3.1.0
 info:
   title: Arctic METOC Agent API (PoX, Open‑Meteo + Geocoder)
   version: 0.5.0
@@ -24,15 +24,8 @@ externalDocs:
   description: Open‑Meteo documentation
   url: https://open-meteo.com/
 servers:
-  - url: https://{host}/{basePath}
-    description: Default
-    variables:
-      host:
-        default: localhost:8080
-        description: Hostname and port
-      basePath:
-        default: metoc
-        description: Base path for all endpoints
+  - url: http://150.239.85.44:8080/metoc
+    description: Production server
   - url: http://localhost:8080/metoc
     description: Local development
 security:
