@@ -12,7 +12,7 @@ externalDocs:
   description: NSIDC sea ice datasets overview
   url: https://nsidc.org/
 servers:
-  - url: http://150.239.85.44:8090/seaice
+  - url: http://169.59.191.144:8090/seaice
     description: Production server
   - url: http://localhost:8090/seaice
     description: Local development

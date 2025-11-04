@@ -1,12 +1,4 @@
-# Testing METOC Agent with Curl commands
 
-```
-uvicorn metoc_openmeteo_agent:app --port 8080
-```
-or 
-```
-docker compose up --no-deps -d metoc_agent
-```
 BASE=http://$HOST:8080/metoc
 
 # 🧩 1. Health Check

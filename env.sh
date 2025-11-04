@@ -20,4 +20,5 @@ export AIS_ROUTING_KEY=""
 
 export CSV_PATH="./csv/2024-2 UNLOCODE CodeListPart3.csv"
 
-export HOST=150.239.85.44
+#export HOST=150.239.85.44
+export HOST=169.59.191.144 

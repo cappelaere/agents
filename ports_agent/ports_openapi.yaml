@@ -9,7 +9,7 @@ info:
     name: API Owner
     email: you@example.com
 servers:
-  - url: http://150.239.85.44:8110/ports
+  - url: http://169.59.191.144:8110/ports
     description: Production server
   - url: http://localhost:8110/ports
     description: Local development

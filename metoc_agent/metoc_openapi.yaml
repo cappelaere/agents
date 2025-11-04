@@ -24,7 +24,7 @@ externalDocs:
   description: Open‑Meteo documentation
   url: https://open-meteo.com/
 servers:
-  - url: http://150.239.85.44:8080/metoc
+  - url: http://169.59.191.144:8080/metoc
     description: Production server
   - url: http://localhost:8080/metoc
     description: Local development

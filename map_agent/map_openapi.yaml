@@ -25,7 +25,7 @@ info:
     - **Styling** (client side, FYI): Points are rendered as circle markers; polygons with semi-transparent fill; lines with medium strokes. Popups show all `properties`.
 
 servers:
-  - url: http://150.239.85.44:8200
+  - url: http://169.59.191.144:8200
     description: Production server
   - url: http://localhost:8200
     description: local development
