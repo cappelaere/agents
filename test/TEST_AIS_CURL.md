@@ -17,14 +17,33 @@ curl -s "$BASE/vessels/aoi?bbox=-175,65,-155,80&timespan=1440&shiptype=7&msgtype
 curl -s "$BASE/vessels/nearby?lat=65.1&lon=-170.7&radius_nm=100&msgtype=simple" | jq .
 
 # Vessel photo — by ship_id
-curl -s "$BASE/vessel/photo?ship_id=689883" | jq .
-curl -s "$BASE/vessel/photo?mmsi=303364000" | jq .
+curl -s "$BASE/vessel/photo?ship_id=753507" | jq .
+curl -s "$BASE/vessel/photo?mmsi=356027000" | jq .
 curl -s "$BASE/vessel/photo?imo=9578945" | jq .
 
-# Vessel info — by MMSI
+curl -s "https://services.marinetraffic.com/api/exportvesselphoto/62f4586b4f7005b410e9734e8a7aa5edab2ad69d?shipid=689883&protocol=jsono" | jq
+
+"identifier": {
+        "imo": 9289740,
+        "mmsi": 356027000,
+        "callSign": "3EZV5",
+        "eni": null,
+        "shipId": 753507
+      },
+
+curl -s "$BASE/vessel/photo?ship_id=753507" | jq .
+curl -s "$BASE/vessel/photo?ship_id=753507" | jq .
+
+curl -s "https://services.marinetraffic.com/api/exportvesselphoto/62f4586b4f7005b410e9734e8a7aa5edab2ad69d?shipid=753507&protocol=jsono" | jq
+curl -s "https://services.marinetraffic.com/api/exportvesselphoto/62f4586b4f7005b410e9734e8a7aa5edab2ad69d?vessel_id=9289740&protocol=jsono" | jq
+curl -s "https://services.marinetraffic.com/api/exportvesselphoto/62f4586b4f7005b410e9734e8a7aa5edab2ad69d?vessel_id=356027000&protocol=jsono" | jq
+
+# Vessel info 
 curl -s "$BASE/vessel/info?mmsi=257017000" | jq .
 curl -s "$BASE/vessel/info?imo=273214780" | jq .
 curl -s "$BASE/vessel/info?shipname=BOSS" | jq .
+
+
 
 # Vessel track — by IMO within a time window
 curl -s "$BASE/vessel/track?imo=9538907&fromdt=2025-09-01%2000:00&todt=2025-09-02%2000:00" | jq .

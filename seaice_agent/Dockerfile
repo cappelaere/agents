@@ -31,7 +31,7 @@ ENV PORT=8090
 # Example: START_CMD="ais-agent --openapi ${OPENAPI_FILE} --host ${HOST} --port ${PORT}"
 ENV START_CMD="uvicorn seaice_agent:app --host ${HOST} --port ${PORT} --reload"
 
-EXPOSE 8100
+EXPOSE 8090
 
 # Optional healthcheck; disable or adjust path if your agent differs
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \

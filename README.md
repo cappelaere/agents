@@ -78,7 +78,12 @@ This captures all exact library versions — useful for deployments or container
 Example:
 
 ```bash
-uvicorn metoc_openmeteo_agent:app --port 8080 --reload
+cd metoc_agent
+uvicorn metoc_agent:app --port 8080 --reload
+
+cd seaice_agent
+uvicorn seaice_agent:app --port 8290 --reload
+
 ```
 
 Then test:
