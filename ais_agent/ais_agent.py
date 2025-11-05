@@ -513,8 +513,10 @@ async def vessel_photo(
     id_params = make_identifier_params(ship_id,mmsi,imo)
     if mmsi:
         id_params['vessel_id'] = mmsi
+        del id_params['mmsi'] 
     if imo:
         id_params['vessel_id'] = imo
+        del id_params['imo'] 
 
     id_params['protocol'] = 'jsono'
     payload = await upstream_get(f"/exportvesselphoto/{apikey}", id_params)

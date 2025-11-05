@@ -2,11 +2,13 @@ BASE="http://$HOST:8110/ports"
 
 curl -s "$BASE/health" | jq
 
-curl -s "$BASE/search?name=Port%20of%20Los%20Angeles" | jq
+curl -s "$BASE/search?name=Los%20Angeles" | jq
 
 curl -s "$BASE/columns" | jq
 curl -s "$BASE/search?name=los%20angeles&min_score=0&limit=10" | jq
 curl -s "$BASE/search?name=Port%20of%20Los%20Angeles&country=US&exact=true" | jq
+
+curl -s "$BASE/search?name=Beaver&country=US&exact=true&state=AK" | jq
 
 
 # 1) Simple name-only (loose)

@@ -8,7 +8,7 @@ info:
     and historical tracks. The spec is tuned for LLM tool-use and WatsonX Orchestrate.
 
 servers:
-  - url: http://69.59.191.144:8100/ais
+  - url: http://169.59.191.144:8100/ais
     description: remote production server for the AIS agent
   - url: http://localhost:8100/ais
     description: Local development server for the AIS agent

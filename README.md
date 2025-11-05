@@ -119,7 +119,7 @@ docker compose up --no-deps -d map_agent
 
 # follow live logs for a single service
 docker compose logs -f metoc_agent
-docker compose logs -f seance_agent
+docker compose logs -f seaice_agent
 docker compose logs -f ais_agent
 docker compose logs -f ports_agent
 docker compose logs -f map_agent

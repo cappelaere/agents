@@ -18,6 +18,8 @@ curl -s "$BASE/vessels/nearby?lat=65.1&lon=-170.7&radius_nm=100&msgtype=simple" 
 
 # Vessel photo — by ship_id
 curl -s "$BASE/vessel/photo?ship_id=689883" | jq .
+curl -s "$BASE/vessel/photo?mmsi=303364000" | jq .
+curl -s "$BASE/vessel/photo?imo=9578945" | jq .
 
 # Vessel info — by MMSI
 curl -s "$BASE/vessel/info?mmsi=257017000" | jq .
