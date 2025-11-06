@@ -234,7 +234,7 @@ components:
         - $ref: '#/components/schemas/MultiLineString'
         - $ref: '#/components/schemas/Polygon'
         - $ref: '#/components/schemas/MultiPolygon'
-        - $ref: '#/components/schemas/GeometryCollection']
+        - $ref: '#/components/schemas/GeometryCollection'
 
     Point:
       type: object

@@ -14,8 +14,7 @@ curl -i "$BASE/seaice/wms?layer=seaice_conc&time=2025-09-01&bbox=60,-180,90,180&
 
 3) Ensure/download a file (GET)
 # cached-or-download
-curl -i "$BASE/seaice/download?time=2025-09-01" \
-  -H "X-Request-ID: ${RID:-test-dl-001}"
+curl -i "$BASE/seaice/download?time=2025-09-01" 
 
 # force re-download
 curl -i "$BASE/seaice/download?time=2025-09-01&force=true" \

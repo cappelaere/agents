@@ -18,7 +18,8 @@ services:
     ports:
       - "8090:8090"
     env_file: ./.env.sh
-
+    volumes:
+      - /home/vpcuser/agents/data:/home/vpcuser/agents/data
 
   ais_agent:
     build:
