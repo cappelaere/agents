@@ -7,6 +7,9 @@ from typing import Dict, Any, Set
 import json
 import asyncio
 import time
+import os
+
+from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
 app = FastAPI(title="Arctic Map Agent (Leaflet)")
 templates = Jinja2Templates(directory="templates")
@@ -60,10 +63,13 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 # --- Health endpoints ---
+@tool()
 @app.get("/health")
 async def health():
     return {"status": "ok"}
 
+# ---------- Home Page ---------------
+@tool()
 @app.get("/", response_class=HTMLResponse)
 async def arctic_map(request: Request):
     """
@@ -96,6 +102,8 @@ async def websocket_endpoint(websocket: WebSocket):
         keepalive.cancel()
         await manager.disconnect(websocket)
 
+# -------------- Ingest ----------------------
+@tool()
 @app.post("/ingest")
 async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
     """
@@ -115,8 +123,7 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
 
 
 # --- Version endpoint ---
-import os
-
+@tool()
 @app.get("/version")
 async def version():
     return {

@@ -15,6 +15,8 @@ from fastapi import FastAPI, Query, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+from ibm_watsonx_orchestrate.agent_builder.tools import tool
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_JSON  = os.getenv("LOG_JSON", "1") in {"1", "true", "True"}
 
@@ -298,6 +300,7 @@ app = FastAPI(
 )
 
 # Health
+@tool()
 @app.get("/ais/health", tags=["Health"])
 async def health(request: Request):
     ok, detail = True, "ok"
@@ -317,6 +320,7 @@ async def health(request: Request):
     })
 
 # ----- AOI endpoints -----
+@tool()
 @app.get("/ais/aoi", tags=["AOI"])
 async def list_aois(request: Request):
     return JSONResponse({
@@ -330,6 +334,8 @@ async def list_aois(request: Request):
         },
     })
 
+# ----- AOI -----
+@tool()
 @app.get("/ais/aoi/{aoi_id}", tags=["AOI"])
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
     feat = AOI.get(aoi_id)
@@ -350,6 +356,7 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
     })
 
 # ----- Vessels in AOI -----
+@tool()
 @app.get("/ais/vessels/aoi", tags=["Vessels"])
 async def vessels_in_aoi(
     request: Request,
@@ -405,6 +412,7 @@ async def vessels_in_aoi(
     return JSONResponse({"nodes": payload, "meta": meta_dict})
 
 # ----- Vessels nearby -----
+@tool()
 @app.get("/ais/vessels/nearby", tags=["Vessels"])
 async def vessels_nearby(
     request: Request,
@@ -478,6 +486,7 @@ async def vessels_nearby(
     return JSONResponse({"nodes": nodes, "meta": meta_dict})
 
 # ----- Vessel info -----
+@tool()
 @app.get("/ais/vessel/info", tags=["Vessels"])
 async def vessel_info(
     request: Request,
@@ -502,6 +511,7 @@ async def vessel_info(
     return JSONResponse({"nodes":nodes, "meta": meta.model_dump()})
 
 # ----- Vessel info -----
+@tool()
 @app.get("/ais/vessel/photo", tags=["Vessels"])
 async def vessel_photo(
     request: Request,
@@ -531,6 +541,7 @@ async def vessel_photo(
     return JSONResponse({"node": payload, "meta": meta.model_dump()})
 
 # ----- Vessel track -----
+@tool()
 @app.get("/ais/vessel/track", tags=["Tracks"])
 async def vessel_track(
     request: Request,
@@ -563,6 +574,7 @@ async def vessel_track(
     return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Vessel Events -----
+@tool()
 @app.get("/ais/vessel/events", tags=["Events"])
 async def vessel_events(
     request: Request,
@@ -595,6 +607,7 @@ async def vessel_events(
 
 
 # ----- Single Vessel Portcalls -----
+@tool()
 @app.get("/ais/vessel/portcalls", tags=["PortCalls"])
 async def vessel_portcalls(
     request: Request,
@@ -627,6 +640,7 @@ async def vessel_portcalls(
     return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Portcalls -----
+@tool()
 @app.get("/ais/portcalls", tags=["PortCalls"])
 async def portcalls(
     request: Request,
@@ -659,6 +673,7 @@ async def portcalls(
     return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Routing -----
+@tool()
 @app.get("/ais/routing/distance_to_port", tags=["Routing"])
 async def distance_port(
     request: Request,
@@ -684,6 +699,8 @@ async def distance_port(
     )
     return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
+# ------------- Vessel Routing -----------------
+@tool()
 @app.get("/ais/routing/vessel_route_to_port", tags=["Routing"])
 async def distance_port(
     request: Request,

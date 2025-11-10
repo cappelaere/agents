@@ -9,6 +9,8 @@ import os, uuid, socket, time, logging
 from datetime import datetime
 import httpx
 
+from ibm_watsonx_orchestrate.agent_builder.tools import tool
+
 app = FastAPI(title="Arctic METOC Agent API (PoX, Open‑Meteo + Geocoder)", version="0.4.2")
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -51,6 +53,8 @@ def _gov(endpoint: str, req: Request, inputs: Dict[str, Any], lineage: Dict[str,
         "license": {"name": "Open-Meteo", "url": "https://open-meteo.com/"},
     }
 
+# --------------- Health --------------------
+@tool()
 @app.get("/metoc/health", tags=["Health"])
 async def health(request: Request):
     resp = {
@@ -60,6 +64,8 @@ async def health(request: Request):
     resp["governance"] = _gov("/metoc/health", request, {}, {})
     return resp
 
+# ---------------- Search --------------------------
+@tool()
 @app.get("/metoc/geocode/search", tags=["Geocoder"])
 async def geocode_search(request: Request, name: str, count: int = 10, language: Optional[str] = None, format: str = "json"):
     url = "https://geocoding-api.open-meteo.com/v1/search"
@@ -74,6 +80,8 @@ async def geocode_search(request: Request, name: str, count: int = 10, language:
     resp["governance"] = _gov("/metoc/geocode/search", request, {"name": name, "count": count, "language": language, "format": format}, {"provider_url": url})
     return resp
 
+# ----------------- Forecast ------------------------------
+@tool()
 @app.get("/metoc/atmosphere/forecast", tags=["Atmosphere"])
 async def atmosphere_forecast(request: Request, lat: float, lon: float, hourly: Optional[str] = None, daily: Optional[str] = None,
                               current_weather: bool = True, timezone: Optional[str] = None, forecast_days: int = 7):
@@ -89,6 +97,8 @@ async def atmosphere_forecast(request: Request, lat: float, lon: float, hourly: 
     resp["governance"] = _gov("/metoc/atmosphere/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
     return resp
 
+# ------------------ Archive -----------------------------
+@tool()
 @app.get("/metoc/atmosphere/archive", tags=["Atmosphere"])
 async def atmosphere_archive(request: Request, lat: float, lon: float, start_date: str, end_date: str, hourly: Optional[str] = None, daily: Optional[str] = None, timezone: Optional[str] = None):
     url = "https://archive-api.open-meteo.com/v1/archive"
@@ -103,6 +113,8 @@ async def atmosphere_archive(request: Request, lat: float, lon: float, start_dat
     resp["governance"] = _gov("/metoc/atmosphere/archive", request, {"lat": lat, "lon": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}, {"provider_url": url})
     return resp
 
+# ---------------- Forecast -----------------------
+@tool()
 @app.get("/metoc/marine/forecast", tags=["Marine"])
 async def marine_forecast(request: Request, lat: float, lon: float, hourly: Optional[str] = None, timezone: Optional[str] = None, forecast_days: int = 5):
     url = "https://marine-api.open-meteo.com/v1/marine"

@@ -19,6 +19,8 @@ import logging
 import numpy as np
 from pyproj import Transformer
 
+from ibm_watsonx_orchestrate.agent_builder.tools import tool
+
 app = FastAPI(title="NSIDC Sea Ice Agent API (Runtime Fetch)", version="0.4.0")
 
 # -----------------------------
@@ -313,6 +315,7 @@ async def _wxg_log_payload(governance: Dict[str, Any], output: Dict[str, Any]) -
 # -----------------------------
 # Endpoints
 # -----------------------------
+@tool()
 @app.get("/seaice/health")
 async def healthz(request: Request):
     resp = {
@@ -332,7 +335,8 @@ async def healthz(request: Request):
     # No payload logging for health
     return resp
 
-
+# -------------- WMS --------------------
+@tool()
 @app.get("/seaice/wms")
 async def wms_template(
     layer: Optional[str] = None,
@@ -370,7 +374,8 @@ async def wms_template(
     # no payload logging for template
     return resp
 
-
+# ------- Download product -----------------
+@tool()
 @app.get("/seaice/download")
 async def download(
     time: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -426,7 +431,8 @@ async def download(
         pass
     return resp
 
-
+# ---------- Point -----------------
+@tool()
 @app.get("/seaice/point")
 async def point_sample(
     lat: float = Query(..., ge=-90, le=90),
@@ -478,7 +484,8 @@ async def point_sample(
         pass
     return resp
 
-
+# ------------------- Stats -----------------------
+@tool()
 @app.post("/seaice/stats")
 async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = None):
     """
