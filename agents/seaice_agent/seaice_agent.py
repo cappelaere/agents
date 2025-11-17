@@ -49,6 +49,13 @@ SENSOR_CANDIDATES: List[str] = [s.strip() for s in os.getenv(
     "NSIDC_SENSORS", "SSMI, SSMIS, AMSR2"
 ).split(",") if s.strip()]
 
+# Initialize LangFuse
+from langfuse import Langfuse
+langfuse = Langfuse(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host=os.getenv("LANGFUSE_HOST")
+
 # Ensure data directory exists
 pathlib.Path(NSIDC_DATA_DIR).mkdir(parents=True, exist_ok=True)
 
@@ -382,6 +389,12 @@ async def download(
     force: bool = Query(False, description="If true, redownload even if cached"),
     request: Request = None,
 ):
+    init = {
+        "tine": time,
+        "force": force
+    }
+    trace = langfuse.trace(name="download", input=input)
+
     # Return cached if present
     for local_path, sensor in _candidate_local_paths(time):
         if os.path.exists(local_path) and not force:
@@ -405,6 +418,7 @@ async def download(
                 await _wxg_log_payload(resp["governance"], output={"status": resp["status"], "file": resp["file"]})
             except Exception:
                 pass
+            trace.update(output=resp)
             return resp
 
     # Otherwise download
@@ -429,6 +443,7 @@ async def download(
         await _wxg_log_payload(resp["governance"], output={"status": resp["status"], "file": resp["file"]})
     except Exception:
         pass
+    trace.update(output=resp)
     return resp
 
 # ---------- Point -----------------
@@ -440,6 +455,13 @@ async def point_sample(
     time: Optional[str] = None,
     request: Request = None,
 ):
+    input = {
+        "lat": lat,
+        "lon": lon,
+        "time": time
+    }
+    trace = langfuse.trace(name+"point_sample", input=input)
+
     t = time or datetime.utcnow().strftime("%Y-%m-%d")
     local_path, sensor, _ = _ensure_local_file(t, force=False)
     ds = _open_ds(local_path)
@@ -482,6 +504,8 @@ async def point_sample(
         await _wxg_log_payload(resp["governance"], output={"value_fraction": resp["value_fraction"]})
     except Exception:
         pass
+
+    trace.update(output=resp)
     return resp
 
 # ------------------- Stats -----------------------
@@ -495,6 +519,11 @@ async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = Non
       "time": "YYYY-MM-DD"
     }
     """
+    input = {
+        "payload": payload
+    }
+    trace = langfuse.trace(name="bbox_stats", input=input)
+
     bbox = payload.get("bbox")
     t = payload.get("time")
 
@@ -575,6 +604,8 @@ async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = Non
         await _wxg_log_payload(resp["governance"], output={"mean": resp["mean"], "count": resp["count"]})
     except Exception:
         pass
+    
+    trace.update(output=resp)
     return resp
 
 if __name__ == "__main__":

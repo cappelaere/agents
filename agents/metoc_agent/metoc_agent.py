@@ -20,6 +20,13 @@ logger = logging.getLogger("metoc_openmeteo_agent")
 APP_NAME = "metoc_agent"
 APP_VERSION = "0.2.2"
 
+# Initialize LangFuse
+from langfuse import Langfuse
+langfuse = Langfuse(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host=os.getenv("LANGFUSE_HOST")
+
 def _now_iso() -> str:
     return datetime.utcnow().isoformat(timespec="milliseconds") + "Z"
 
@@ -67,7 +74,19 @@ async def health(request: Request):
 # ---------------- Search --------------------------
 @tool()
 @app.get("/metoc/geocode/search", tags=["Geocoder"])
-async def geocode_search(request: Request, name: str, count: int = 10, language: Optional[str] = None, format: str = "json"):
+async def geocode_search(request: Request, 
+    name: str, 
+    count: int = 10, 
+    language: Optional[str] = None, 
+    format: str = "json"):
+
+    input = {
+        "name": name,
+        "count": count,
+        "language": language,
+        "format": format
+    }
+    trace = langfuse.trace(name="geocode_search", input=input)
     url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {"name": name, "count": count, "language": language, "format": format}
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -78,13 +97,30 @@ async def geocode_search(request: Request, name: str, count: int = 10, language:
         "results": data,
     }
     resp["governance"] = _gov("/metoc/geocode/search", request, {"name": name, "count": count, "language": language, "format": format}, {"provider_url": url})
+    trace.update(output=resp)
     return resp
 
 # ----------------- Forecast ------------------------------
 @tool()
 @app.get("/metoc/atmosphere/forecast", tags=["Atmosphere"])
-async def atmosphere_forecast(request: Request, lat: float, lon: float, hourly: Optional[str] = None, daily: Optional[str] = None,
-                              current_weather: bool = True, timezone: Optional[str] = None, forecast_days: int = 7):
+async def atmosphere_forecast(request: Request, 
+    lat: float, 
+    lon: float, 
+    hourly: Optional[str] = None, 
+    daily: Optional[str] = None,
+    current_weather: bool = True, 
+    timezone: Optional[str] = None, forecast_days: int = 7):
+
+    input = {
+        "lat": lat,
+        "lon": lon,
+        "hourly": hourly,
+        "daily": daily,
+        "current_weather": current_weather, 
+        "timezone": timezone
+    }
+    trace = langfuse.trace(name="atmosphere_forecast", input=input)
+
     url = "https://api.open-meteo.com/v1/forecast"
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -95,12 +131,32 @@ async def atmosphere_forecast(request: Request, lat: float, lon: float, hourly: 
         "forecast": data,
     }
     resp["governance"] = _gov("/metoc/atmosphere/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
+    trace.update(output=resp)
     return resp
 
 # ------------------ Archive -----------------------------
 @tool()
 @app.get("/metoc/atmosphere/archive", tags=["Atmosphere"])
-async def atmosphere_archive(request: Request, lat: float, lon: float, start_date: str, end_date: str, hourly: Optional[str] = None, daily: Optional[str] = None, timezone: Optional[str] = None):
+async def atmosphere_archive(request: Request, 
+    lat: float, 
+    lon: float, 
+    start_date: str, 
+    end_date: str, 
+    hourly: Optional[str] = None, 
+    daily: Optional[str] = None, 
+    timezone: Optional[str] = None):
+
+    input = {
+        "lat": lat,
+        "lon": lon,
+        "start_date": start_date,
+        "end_date": end_date,
+        "hourly": hourly,
+        "daily": daily,
+        "timezone": timezone
+    }
+    trace = langfuse.trace(name="atmosphere_archive", input=input)
+
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {"latitude": lat, "longitude": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -111,12 +167,30 @@ async def atmosphere_archive(request: Request, lat: float, lon: float, start_dat
         "archive": data,
     }
     resp["governance"] = _gov("/metoc/atmosphere/archive", request, {"lat": lat, "lon": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}, {"provider_url": url})
+   
+    trace.output(output=resp)
     return resp
 
 # ---------------- Forecast -----------------------
 @tool()
 @app.get("/metoc/marine/forecast", tags=["Marine"])
-async def marine_forecast(request: Request, lat: float, lon: float, hourly: Optional[str] = None, timezone: Optional[str] = None, forecast_days: int = 5):
+async def marine_forecast(request: Request, 
+    lat: float, 
+    lon: float, 
+    hourly: Optional[str] = None, 
+    timezone: Optional[str] = None, 
+    forecast_days: int = 5):
+    
+    input = {
+        "lat": lat,
+        "lon": lon,
+        "hourly": hourly,
+        "daily": daily,
+        "timezone": timezone,
+        "forecast_days": forecast_days
+    }
+    trace = langfuse.trace(name="marine_forecast", input=input)
+
     url = "https://marine-api.open-meteo.com/v1/marine"
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -127,4 +201,5 @@ async def marine_forecast(request: Request, lat: float, lon: float, hourly: Opti
         "marine": data,
     }
     resp["governance"] = _gov("/metoc/marine/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
+    trace.update(output=resp)
     return resp

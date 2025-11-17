@@ -50,6 +50,13 @@ from pydantic import BaseModel, Field, field_validator
 
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
+# Initialize LangFuse
+from langfuse import Langfuse
+langfuse = Langfuse(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host=os.getenv("LANGFUSE_HOST")
+
 # ---------------------------------
 # Optional fuzzy backend
 # ---------------------------------
@@ -454,6 +461,15 @@ def search(
     min_score: Optional[int] = Query(None, ge=0, le=100),
     exact: bool = Query(False, description="Exact normalized match only"),
 ):
+    input = {
+        "name": name,
+        "state": state,
+        "country": country,
+        "limit": limit,
+        "min_score": min_score,
+        "exact": exact
+    }
+    trace = langfuse.trace(name="port_search", input=input)
     df = load_dataframe()
     q = QueryItem(name=name, state=state, country=country, limit=limit, min_score=min_score, exact=exact)
 
@@ -470,7 +486,9 @@ def search(
             MatchResult(port_name=_val_safe(r.port_name), state=_val_safe(r.state), country=_val_safe(r.country), unlocode=_val_safe(r.unlocode), score=100)
             for r in hits.itertuples(index=False)
         ]
-        return results[: (q.limit or DEFAULT_LIMIT)]
+        response = results[: (q.limit or DEFAULT_LIMIT)]
+        trace.update(output=response)
+        return responses
 
     # Lightweight substring match before fuzzy to catch simple cases
     name_norm = _normalize_text(q.name)
@@ -481,11 +499,15 @@ def search(
         for r in prelim.itertuples(index=False)
     ]
     if prelim_results:
-        return prelim_results[: (q.limit or DEFAULT_LIMIT)]
+        response = prelim_results[: (q.limit or DEFAULT_LIMIT)]
+        trace.update(output=response)
+        return response
 
     # Fuzzy as final step
     # Build a temporary QueryItem limited to filters; fuzzy_search applies filters internally too
-    return fuzzy_search(df, q)
+    response = fuzzy_search(df, q)
+    trace.update(output=response)
+    return response
 
 
 if __name__ == "__main__":

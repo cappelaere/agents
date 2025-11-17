@@ -2,7 +2,7 @@
 services:
   metoc_agent:
     build:
-      context: ./metoc_agent
+      context: ./agents/metoc_agent
     image: metoc_agent:latest
     container_name: metoc_agent
     ports:
@@ -12,7 +12,7 @@ services:
 
   seaice_agent:
     build:
-      context: ./seaice_agent
+      context: ./agents/seaice_agent
     image: seaice_agent:latest
     container_name: seaice_agent
     ports:
@@ -23,7 +23,7 @@ services:
 
   ais_agent:
     build:
-      context: ./ais_agent
+      context: ./agents/ais_agent
     image: ais_agent:latest
     container_name: ais_agent
     ports:
@@ -32,7 +32,7 @@ services:
 
   ports_agent:
     build:
-      context: ./ports_agent
+      context: ./agents/ports_agent
     image: ports_agent:latest
     container_name: ports_agent
     ports:
@@ -41,14 +41,43 @@ services:
     
   map_agent:
     build:
-      context: ./map_agent
+      context: ./agents/map_agent
     image: map_agent:latest
     container_name: map_agent
     ports:
       - "8120:8120"
     env_file: ./.env.sh
 
+
+  postgres:
+    image: postgres:15
+    container_name: langfuse-db
+    restart: always
+    environment:
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfusepass
+      POSTGRES_DB: langfuse
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: langfuse-app
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgres://langfuse:langfusepass@postgres:5432/langfuse
+      NEXTAUTH_SECRET: supersecretkey
+    ports:
+      - "3000:3000"
+
 secrets:
   env:
     file: ./.env.sh
 
+
+volumes:
+  pgdata:

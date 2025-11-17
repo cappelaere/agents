@@ -21,3 +21,6 @@ export AIS_ROUTING_KEY=""
 export CSV_PATH="./csv/2024-2 UNLOCODE CodeListPart3.csv"
 
 export HOST=
+
+export WO_INSTANCE=https://api.us-south.watson-orchestrate.cloud.ibm.com/instances/xxxxx
+export WO_API_KEY=bbbb

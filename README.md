@@ -3,7 +3,7 @@
 From your project root (where your agent code lives):
 
 ```bash
-python3 -m venv venv
+python3 -m venv orchestrate311
 ```
 
 This creates a new isolated environment in a folder named `venv/`.
@@ -16,7 +16,7 @@ You can name it anything (e.g. `.env`, `.venv`, `agent_env`), but `venv` is stan
 ### On **macOS / Linux**
 
 ```bash
-source venv/bin/activate
+source orchestrate311/bin/activate
 ```
 
 ### On **Windows (PowerShell)**

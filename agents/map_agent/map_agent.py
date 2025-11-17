@@ -17,6 +17,13 @@ templates = Jinja2Templates(directory="templates")
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+# Initialize LangFuse
+from langfuse import Langfuse
+langfuse = Langfuse(
+    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
+    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
+    host=os.getenv("LANGFUSE_HOST")
+
 # Serve static files (e.g., favicon)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -110,16 +117,24 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
     Receives a GeoJSON payload and broadcasts it to all connected map clients.
     Expected: FeatureCollection/Feature/Geometry object.
     """
+    input = {
+        "payload": payload
+    }
+    trace = lanfuse.trace(name= "ingest", input=input)
     if not isinstance(payload, dict) or "type" not in payload:
-        return Response(
+        response = Response(
             content=json.dumps({"error": "Invalid GeoJSON: missing 'type'"}),
             media_type="application/json",
             status_code=400
         )
+        trace.update(error=response)
+        return response
 
     await manager.broadcast_text(json.dumps(payload))
     count = len(payload.get("features", [])) if isinstance(payload.get("features"), list) else None
-    return {"status": "ok", "features": count}
+    response = {"status": "ok", "features": count}
+    trace.update(output=response)
+    return response
 
 
 # --- Version endpoint ---
