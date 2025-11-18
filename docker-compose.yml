@@ -68,11 +68,24 @@ services:
     restart: always
     depends_on:
       - postgres
+      - clickhouse
     environment:
       DATABASE_URL: postgres://langfuse:langfusepass@postgres:5432/langfuse
       NEXTAUTH_SECRET: supersecretkey
+      CLICKHOUSE_URL: http://default:yourpassword@clickhouse:8123
     ports:
       - "3000:3000"
+
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: yourpassword
+
 
 secrets:
   env:
