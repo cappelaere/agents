@@ -8,11 +8,14 @@ info:
     It adds reusable parameters/headers, RFC‑7807 error responses, security schemes
     (API key + Bearer), concrete examples, idempotency and rate‑limit headers, and
     per‑operation `x‑orchestrate` metadata (intents, slot mapping, output shaping, and follow‑ons).
+  x-ibm-skill-headers:
+    X-Session-Id: X-Session-Id
+    
 externalDocs:
   description: NSIDC sea ice datasets overview
   url: https://nsidc.org/
 servers:
-  - url: http://169.59.191.144:8090/seaice
+  - url: http://150.240.3.116:8090/seaice
     description: Production server
   - url: http://localhost:8090/seaice
     description: Local development

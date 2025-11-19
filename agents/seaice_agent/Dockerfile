@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy runtime assets
 COPY seaice_openapi.yaml ./seaice_openapi.yaml
 COPY seaice_agent.py ./seaice_agent.py
+COPY langfuse_utils.py ./langfuse_utils.py
 
 #COPY env.sh ./env.sh
 COPY docker-entrypoint.sh ./docker-entrypoint.sh

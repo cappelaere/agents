@@ -23,9 +23,11 @@ info:
       - “Show these vessels as points with `name` and `mmsi` properties.”
       - “Render this AOI polygon and also include two waypoints as points.”
     - **Styling** (client side, FYI): Points are rendered as circle markers; polygons with semi-transparent fill; lines with medium strokes. Popups show all `properties`.
+  x-ibm-skill-headers:
+    X-Session-Id: X-Session-Id
 
 servers:
-  - url: http://169.59.191.144:8200
+  - url: http://150.240.3.116:8200
     description: Production server
   - url: http://localhost:8200
     description: local development

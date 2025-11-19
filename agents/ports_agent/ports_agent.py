@@ -50,12 +50,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
-# Initialize LangFuse
-from langfuse import Langfuse
-langfuse = Langfuse(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST"))
+from langfuse_utils import trace_start, trace_end, trace_flush
 
 # ---------------------------------
 # Optional fuzzy backend
@@ -414,6 +409,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
 @app.get("/ports/health", tags=["meta"]) 
 def health():
     df = load_dataframe()
+    trace_flush()
     return {
         "status": "ok",
         "rows": int(len(df)),
@@ -427,24 +423,38 @@ def health():
 @tool()
 @app.get("/ports/columns", tags=["debug"]) 
 def columns():
-    df = load_dataframe()
-    return {"columns": list(df.columns), "sample": df_to_records_safe(df.head(3))}
+    trace = trace_start(request)
 
+    df = load_dataframe()
+    response = {"columns": list(df.columns), "sample": df_to_records_safe(df.head(3))}
+    trace_end(trace, response)
+
+    return response
 # --------------- Peek ------------------
 @tool()
 @app.get("/ports/peek", tags=["debug"]) 
 def peek(n: int = 5):
+    trace = trace_start(request)
+
     df = load_dataframe()
     n = max(1, min(int(n), 50))
-    return df_to_records_safe(df.head(n))
+    response = df_to_records_safe(df.head(n))
+    trace_end(trace, response)
+
+    return response
 
 # ---------------- Reload ---------------
 @tool()
 @app.post("/ports/reload", tags=["debug"]) 
 def reload_data():
+    trace = trace_start(request)
+
     try:
         load_dataframe(force=True)
-        return {"reloaded": True, "rows": int(len(load_dataframe()))}
+        response = {"reloaded": True, "rows": int(len(load_dataframe()))}
+        trace_end(trace, resp)
+
+        return response
     except FileNotFoundError as e:
         raise HTTPException(status_code=400, detail=_error_payload("BadRequest", str(e)))
     except Exception as e:
@@ -461,15 +471,8 @@ def search(
     min_score: Optional[int] = Query(None, ge=0, le=100),
     exact: bool = Query(False, description="Exact normalized match only"),
 ):
-    input = {
-        "name": name,
-        "state": state,
-        "country": country,
-        "limit": limit,
-        "min_score": min_score,
-        "exact": exact
-    }
-    trace = langfuse.trace(name="port_search", input=input)
+    trace = trace_start(request)
+
     df = load_dataframe()
     q = QueryItem(name=name, state=state, country=country, limit=limit, min_score=min_score, exact=exact)
 
@@ -487,8 +490,8 @@ def search(
             for r in hits.itertuples(index=False)
         ]
         response = results[: (q.limit or DEFAULT_LIMIT)]
-        trace.update(output=response)
-        return responses
+        trace_end(trace, response)
+        return response
 
     # Lightweight substring match before fuzzy to catch simple cases
     name_norm = _normalize_text(q.name)
@@ -500,13 +503,13 @@ def search(
     ]
     if prelim_results:
         response = prelim_results[: (q.limit or DEFAULT_LIMIT)]
-        trace.update(output=response)
+        trace_end(trace, response)
         return response
 
     # Fuzzy as final step
     # Build a temporary QueryItem limited to filters; fuzzy_search applies filters internally too
     response = fuzzy_search(df, q)
-    trace.update(output=response)
+    trace_end(trace, response)
     return response
 
 

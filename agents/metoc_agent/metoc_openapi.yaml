@@ -13,18 +13,11 @@ info:
       • vendor extensions for WatsonX Orchestrate (x‑orchestrate) with intents, slot mappings, and output shaping
       • rate‑limit and idempotency headers
       • response examples to improve few‑shot behavior for LLMs
-  termsOfService: https://example.org/tos
-  contact:
-    name: METOC PoX Team
-    email: metoc@example.org
-  license:
-    name: Apache‑2.0
-    url: https://www.apache.org/licenses/LICENSE-2.0
-externalDocs:
-  description: Open‑Meteo documentation
-  url: https://open-meteo.com/
+  x-ibm-skill-headers:
+    X-Session-Id: X-Session-Id
+    
 servers:
-  - url: http://169.59.191.144:8080/metoc
+  - url: http://150.240.3.116:8080/metoc
     description: Production server
   - url: http://localhost:8080/metoc
     description: Local development

@@ -20,6 +20,7 @@ import numpy as np
 from pyproj import Transformer
 
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
+from langfuse_utils import trace_start, trace_end, trace_flush
 
 app = FastAPI(title="NSIDC Sea Ice Agent API (Runtime Fetch)", version="0.4.0")
 
@@ -339,6 +340,7 @@ async def healthz(request: Request):
         inputs={},
         lineage={"dataset_url_pattern": NSIDC_URL_PATTERN, "crs": NSIDC_CRS, "variable": NSIDC_VAR_NAME},
     )
+    trace_flush()
     # No payload logging for health
     return resp
 
@@ -354,6 +356,8 @@ async def wms_template(
     height: int = 512,
     request: Request = None,
 ):
+    trace = trace_start(request)
+
     lyr = layer or NSIDC_WMS_LAYER
     resp = {
         "wms_url_template": NSIDC_WMS_BASE,
@@ -379,6 +383,8 @@ async def wms_template(
         lineage={"wms_base": NSIDC_WMS_BASE, "layer": lyr},
     )
     # no payload logging for template
+    trace_end(trace, resp)
+
     return resp
 
 # ------- Download product -----------------
@@ -389,11 +395,7 @@ async def download(
     force: bool = Query(False, description="If true, redownload even if cached"),
     request: Request = None,
 ):
-    init = {
-        "tine": time,
-        "force": force
-    }
-    trace = langfuse.trace(name="download", input=input)
+    trace = trace_start(request)
 
     # Return cached if present
     for local_path, sensor in _candidate_local_paths(time):
@@ -418,7 +420,8 @@ async def download(
                 await _wxg_log_payload(resp["governance"], output={"status": resp["status"], "file": resp["file"]})
             except Exception:
                 pass
-            trace.update(output=resp)
+            
+            trace_end(trace, resp)
             return resp
 
     # Otherwise download
@@ -443,7 +446,7 @@ async def download(
         await _wxg_log_payload(resp["governance"], output={"status": resp["status"], "file": resp["file"]})
     except Exception:
         pass
-    trace.update(output=resp)
+    trace_end(trace, resp)
     return resp
 
 # ---------- Point -----------------
@@ -455,12 +458,7 @@ async def point_sample(
     time: Optional[str] = None,
     request: Request = None,
 ):
-    input = {
-        "lat": lat,
-        "lon": lon,
-        "time": time
-    }
-    trace = langfuse.trace(name+"point_sample", input=input)
+    trace = trace_start(request)
 
     t = time or datetime.utcnow().strftime("%Y-%m-%d")
     local_path, sensor, _ = _ensure_local_file(t, force=False)
@@ -505,7 +503,7 @@ async def point_sample(
     except Exception:
         pass
 
-    trace.update(output=resp)
+    trace_end(trace, resp)
     return resp
 
 # ------------------- Stats -----------------------
@@ -519,10 +517,7 @@ async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = Non
       "time": "YYYY-MM-DD"
     }
     """
-    input = {
-        "payload": payload
-    }
-    trace = langfuse.trace(name="bbox_stats", input=input)
+    trace = trace_start(request)
 
     bbox = payload.get("bbox")
     t = payload.get("time")
@@ -605,7 +600,7 @@ async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = Non
     except Exception:
         pass
     
-    trace.update(output=resp)
+    trace_end(trace, resp)
     return resp
 
 if __name__ == "__main__":

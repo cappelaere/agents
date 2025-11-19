@@ -19,6 +19,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY ais_openapi.yaml ./ais_openapi.yaml
 COPY ais_vessel_info.py ./ais_vessel_info.py
 COPY ais_agent.py ./ais_agent.py
+COPY langfuse_utils.py ./langfuse_utils.py
+
 COPY alaska_uscg_arctic_aois.geojson ./alaska_uscg_arctic_aois.geojson 
 
 #COPY env.sh ./env.sh

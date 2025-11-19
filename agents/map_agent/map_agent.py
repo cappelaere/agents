@@ -9,6 +9,8 @@ import asyncio
 import time
 import os
 
+from langfuse_utils import trace_start, trace_end, trace_flush
+
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
 app = FastAPI(title="Arctic Map Agent (Leaflet)")
@@ -16,13 +18,6 @@ templates = Jinja2Templates(directory="templates")
 
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-
-# Initialize LangFuse
-from langfuse import Langfuse
-langfuse = Langfuse(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST"))
 
 # Serve static files (e.g., favicon)
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -73,6 +68,7 @@ manager = ConnectionManager()
 @tool()
 @app.get("/health")
 async def health():
+    trace_flush()
     return {"status": "ok"}
 
 # ---------- Home Page ---------------
@@ -117,23 +113,21 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
     Receives a GeoJSON payload and broadcasts it to all connected map clients.
     Expected: FeatureCollection/Feature/Geometry object.
     """
-    input = {
-        "payload": payload
-    }
-    trace = lanfuse.trace(name= "ingest", input=input)
+    trace = trace_start(request)
+
     if not isinstance(payload, dict) or "type" not in payload:
         response = Response(
             content=json.dumps({"error": "Invalid GeoJSON: missing 'type'"}),
             media_type="application/json",
             status_code=400
         )
-        trace.update(error=response)
+        trace_end(trace, response)
         return response
 
     await manager.broadcast_text(json.dumps(payload))
     count = len(payload.get("features", [])) if isinstance(payload.get("features"), list) else None
     response = {"status": "ok", "features": count}
-    trace.update(output=response)
+    trace_end(trace, response)
     return response
 
 

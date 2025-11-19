@@ -6,9 +6,11 @@ info:
     AIS (Automatic Identification System) agent for discovering vessels near a location
     or inside an Area of Interest (AOI), retrieving vessel profiles, most recent photo,
     and historical tracks. The spec is tuned for LLM tool-use and WatsonX Orchestrate.
-
+  x-ibm-skill-headers:
+    X-Session-Id: X-Session-Id
+    
 servers:
-  - url: http://169.59.191.144:8100/ais
+  - url: http://150.240.3.116:8100/ais
     description: remote production server for the AIS agent
   - url: http://localhost:8100/ais
     description: Local development server for the AIS agent

@@ -8,8 +8,11 @@ info:
   contact:
     name: API Owner
     email: you@example.com
+  x-ibm-skill-headers:
+    X-Session-Id: X-Session-Id
+    
 servers:
-  - url: http://169.59.191.144:8110/ports
+  - url: http://150.240.3.116:8110/ports
     description: Production server
   - url: http://localhost:8110/ports
     description: Local development
