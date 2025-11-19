@@ -22,7 +22,7 @@ from langfuse import Langfuse
 langfuse = Langfuse(
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST")
+    host=os.getenv("LANGFUSE_HOST"))
 
 # Serve static files (e.g., favicon)
 app.mount("/static", StaticFiles(directory="static"), name="static")

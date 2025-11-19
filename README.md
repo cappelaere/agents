@@ -2,6 +2,8 @@
 
 From your project root (where your agent code lives):
 
+Python version 3.9.23
+
 ```bash
 python3 -m venv orchestrate311
 ```

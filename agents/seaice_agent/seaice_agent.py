@@ -54,7 +54,7 @@ from langfuse import Langfuse
 langfuse = Langfuse(
     public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST")
+    host=os.getenv("LANGFUSE_HOST"))
 
 # Ensure data directory exists
 pathlib.Path(NSIDC_DATA_DIR).mkdir(parents=True, exist_ok=True)
