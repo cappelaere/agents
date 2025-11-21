@@ -699,7 +699,7 @@ async def portcalls(
 # ----- Routing -----
 @tool()
 @app.get("/ais/routing/distance_to_port", tags=["Routing"])
-async def distance_port(
+async def distance_to_port(
     request: Request,
     start_port: Optional[str]  = Query(None, description="Starting Port UN/LOCODE"),
     end_port: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
@@ -723,14 +723,14 @@ async def distance_port(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
     trace_end(trace, response)
     return response
 
 # ------------- Vessel Routing -----------------
 @tool()
 @app.get("/ais/routing/vessel_route_to_port", tags=["Routing"])
-async def distance_port(
+async def vessel_route_to_port(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
     imo: Optional[str] = Query(None, description="Provider vessel imo"),
