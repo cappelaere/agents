@@ -7,11 +7,15 @@ import os, json, math, hashlib, logging, sys, time
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
-from ais_vessel_info import fetch_vessel_info_by_imo, fetch_vessel_info_by_mmsi, fetch_vessel_info_by_name
-from langfuse_utils import trace_start, trace_end, trace_flush
+from .ais_vessel_info import (
+    fetch_vessel_info_by_imo,
+    fetch_vessel_info_by_mmsi,
+    fetch_vessel_info_by_name,
+)
+from .langfuse_utils import trace_start, trace_end, trace_flush
 
 import httpx
-from fastapi import FastAPI, Query, Header, HTTPException, Path, Request
+from fastapi import Query, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
@@ -273,16 +277,7 @@ class AoiRegistry:
 
 AOI = AoiRegistry(AOI_PATH)
 
-# ----- FastAPI app -----
-app = FastAPI(
-    title=APP_NAME,
-    version=APP_VERSION,
-    description="AIS gateway with AOI registry and governance meta (FQ URLs).",
-)
-
-# Health
-@tool()
-@app.get("/ais/health", tags=["Health"])
+# ----- Health -----
 async def health(request: Request):
     ok, detail = True, "ok"
     logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
@@ -303,8 +298,6 @@ async def health(request: Request):
     })
 
 # ----- AOI endpoints -----
-@tool()
-@app.get("/ais/aoi", tags=["AOI"])
 async def list_aois(request: Request):
     trace = trace_start(request)
 
@@ -323,8 +316,6 @@ async def list_aois(request: Request):
     return response
 
 # ----- AOI -----
-@tool()
-@app.get("/ais/aoi/{aoi_id}", tags=["AOI"])
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
     trace = trace_start(request)
 
@@ -348,8 +339,6 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
     return response
 
 # ----- Vessels in AOI -----
-@tool()
-@app.get("/ais/vessels/aoi", tags=["Vessels"])
 async def vessels_in_aoi(
     request: Request,
     aoi_id: Optional[str] = Query(None, description="Registered AOI id; alternative to bbox"),
@@ -408,8 +397,6 @@ async def vessels_in_aoi(
     return response
 
 # ----- Vessels nearby -----
-@tool()
-@app.get("/ais/vessels/nearby", tags=["Vessels"])
 async def vessels_nearby(
     request: Request,
     lat: Optional[float] = Query(None, ge=-90, le=90, description="Latitude (WGS84)"),
@@ -485,8 +472,6 @@ async def vessels_nearby(
     return response
 
 # ----- Vessel info -----
-@tool()
-@app.get("/ais/vessel/info", tags=["Vessels"])
 async def vessel_info(
     request: Request,
     mmsi: Optional[str]     = Query(None, description="Maritime Mobile Service Identity"),
@@ -513,9 +498,7 @@ async def vessel_info(
     trace_end(trace, response)
     return response
 
-# ----- Vessel info -----
-@tool()
-@app.get("/ais/vessel/photo", tags=["Vessels"])
+# ----- Vessel photo -----
 async def vessel_photo(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provide vessel id"),
@@ -548,8 +531,6 @@ async def vessel_photo(
     return response
 
 # ----- Vessel track -----
-@tool()
-@app.get("/ais/vessel/track", tags=["Tracks"])
 async def vessel_track(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
@@ -586,8 +567,6 @@ async def vessel_track(
     return response
 
 # ----- Vessel Events -----
-@tool()
-@app.get("/ais/vessel/events", tags=["Events"])
 async def vessel_events(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
@@ -623,8 +602,6 @@ async def vessel_events(
 
 
 # ----- Single Vessel Portcalls -----
-@tool()
-@app.get("/ais/vessel/portcalls", tags=["PortCalls"])
 async def vessel_portcalls(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
@@ -660,8 +637,6 @@ async def vessel_portcalls(
     return response
 
 # ----- Portcalls -----
-@tool()
-@app.get("/ais/portcalls", tags=["PortCalls"])
 async def portcalls(
     request: Request,
     port_id: Optional[str] = Query(None, description="Port id or UN/LOCODE"),
@@ -697,8 +672,6 @@ async def portcalls(
     return response
 
 # ----- Routing -----
-@tool()
-@app.get("/ais/routing/distance_to_port", tags=["Routing"])
 async def distance_to_port(
     request: Request,
     start_port: Optional[str]  = Query(None, description="Starting Port UN/LOCODE"),
@@ -728,8 +701,6 @@ async def distance_to_port(
     return response
 
 # ------------- Vessel Routing -----------------
-@tool()
-@app.get("/ais/routing/vessel_route_to_port", tags=["Routing"])
 async def vessel_route_to_port(
     request: Request,
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),

@@ -5,7 +5,7 @@ From your project root (where your agent code lives):
 Python version 3.9.23
 
 ```bash
-python3 -m venv orchestrate311
+python3 -m venv venv
 ```
 
 This creates a new isolated environment in a folder named `venv/`.
@@ -18,13 +18,7 @@ You can name it anything (e.g. `.env`, `.venv`, `agent_env`), but `venv` is stan
 ### On **macOS / Linux**
 
 ```bash
-source orchestrate311/bin/activate
-```
-
-### On **Windows (PowerShell)**
-
-```powershell
-venv\Scripts\Activate.ps1
+source venv/bin/activate
 ```
 
 Once activated, your shell prompt will change — e.g.
@@ -123,6 +117,7 @@ docker compose up --no-deps -d seaice_agent
 docker compose up --no-deps -d ais_agent
 docker compose up --no-deps -d ports_agent
 docker compose up --no-deps -d map_agent
+docker compose up --no-deps -d mcp_server
 
 # follow live logs for a single service
 docker compose logs -f metoc_agent
@@ -139,3 +134,42 @@ docker compose logs --since=30m metoc_agent
 
 # Down agent
 docker down metoc_agent
+
+## 🔗 MCP Server (AIS Bridge)
+
+The `mcp_server` service is a thin FastAPI bridge that exposes the AIS agent
+under a `/mcp/ais/...` prefix. It runs in its own container and delegates
+all logic to the bundled `mcp_server/ais_agent` package.
+
+- **Port**: 8200 (host) → 8200 (container)
+- **Key endpoints**:
+  - Bridge health: `GET http://localhost:8200/health`
+  - AIS health via bridge: `GET http://localhost:8200/mcp/ais/health`
+  - OpenAPI JSON: `GET http://localhost:8200/mcp/openapi.json`
+
+Run just the MCP server with Docker:
+
+```bash
+docker compose build mcp_server
+docker compose up --no-deps -d mcp_server
+```
+
+Quick smoke checks:
+
+```bash
+curl http://localhost:8200/health
+curl http://localhost:8200/mcp/ais/health
+curl http://localhost:8200/mcp/openapi.json | jq '.info.title'
+```
+
+### 🧪 MCP server tests
+
+There is a small pytest module at `test/test_mcp_server.py` that verifies
+the bridge health, docs, and a few AIS routes.
+
+From the project root, with Docker running:
+
+```bash
+export MCP_BASE_URL=http://localhost:8200   # optional, this is the default
+pytest test/test_mcp_server.py
+```

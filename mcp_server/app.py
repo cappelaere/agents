@@ -1,28 +1,21 @@
 """MCP bridge app that re-uses the AIS agent implementation.
 
-This module makes the `agents/ais_agent` package importable at runtime,
-imports its FastAPI `app` and mounts it under `/mcp` so the same routes and
-OpenAPI are available at `/mcp/...`. It also exposes a lightweight
-`/health` endpoint and logs clear errors if the import fails.
+This module defines all FastAPI endpoints on the local `app` and delegates
+their implementation to functions in the bundled `ais_agent.ais_agent`
+module under this directory. All routing lives here; the ais_agent module
+is logic-only.
 """
 import logging
-import os
-import sys
 from pathlib import Path
-from fastapi import FastAPI
+from typing import Optional
+
+from fastapi import FastAPI, Request, Query, Path as FPath
 from fastapi.responses import FileResponse, JSONResponse
+
+from ais_agent import ais_agent
 
 logger = logging.getLogger("mcp_server")
 logging.basicConfig(level=logging.INFO)
-
-# locate repo root relative to this file (may not be present inside container)
-HERE = Path(__file__).resolve().parent
-REPO_ROOT = HERE.parent
-
-# Make repo root importable so `mcp_server.ais_agent` can be found when running inside container
-repo_root_str = str(REPO_ROOT)
-if repo_root_str not in sys.path:
-    sys.path.insert(0, repo_root_str)
 
 # Bridge FastAPI app: docs and openapi are served under /mcp/*
 app = FastAPI(
@@ -33,116 +26,171 @@ app = FastAPI(
     openapi_url="/mcp/openapi.json",
 )
 
-
-# Attempt to import ais_agent robustly. In many container setups the
-# repository path won't exist; prefer importing the package directly.
-ais_agent = None
-import_error = None
-
-try:
-    import ais_agent  # type: ignore
-    logger.info("Imported ais_agent package directly")
-    ais_agent = ais_agent
-except Exception as e:
-    import_error = e
-    logger.info("Direct import of ais_agent failed: %s", e)
-
-    # 1) Try env var 'AIS_AGENT_PATH' which can point to a mounted source dir
-    env_path = os.getenv("AIS_AGENT_PATH")
-    if env_path:
-        p = Path(env_path)
-        if p.exists():
-            sp = str(p)
-            if sp not in sys.path:
-                sys.path.insert(0, sp)
-            try:
-                import ais_agent  # type: ignore
-                logger.info("Imported ais_agent after adding AIS_AGENT_PATH: %s", sp)
-                ais_agent = ais_agent
-                import_error = None
-            except Exception as e2:
-                import_error = e2
-                logger.exception("Import still failed after AIS_AGENT_PATH: %s", e2)
-        else:
-            logger.error("AIS_AGENT_PATH set but does not exist: %s", env_path)
-
-    # 2) As a last resort: only attempt repo-relative path if present in container
-    if ais_agent is None:
-        default_agent_dir = REPO_ROOT / "agents" / "ais_agent"
-        if default_agent_dir.exists():
-            sp = str(default_agent_dir)
-            if sp not in sys.path:
-                sys.path.insert(0, sp)
-            try:
-                import ais_agent  # type: ignore
-                logger.info("Imported ais_agent from repo-relative path: %s", sp)
-                ais_agent = ais_agent
-                import_error = None
-            except Exception as e3:
-                import_error = e3
-                logger.exception("Import failed from repo-relative path: %s", e3)
-        else:
-            logger.warning("No AIS_AGENT_PATH set and repo-relative ais_agent not present in container; \n"
-                           "set AIS_AGENT_PATH to a mounted path containing ais_agent or install ais_agent as a package.")
-
-    # 3) Try the bundled package under this mcp_server directory (mcp_server.ais_agent)
-    if ais_agent is None:
-        try:
-            import importlib
-            module = importlib.import_module("mcp_server.ais_agent")
-            logger.info("Imported bundled mcp_server.ais_agent package")
-            # the package's __init__ exports `app`
-            ais_agent = module
-            import_error = None
-        except Exception as e_mod:
-            logger.info("Failed to import bundled mcp_server.ais_agent: %s", e_mod)
-            import_error = import_error or e_mod
+# ----- Health -----
+@app.get("/health", tags=["Health"])
+async def health_root(request: Request):
+    return await ais_agent.health(request)
 
 
-# If we have the module, include or mount its routes; otherwise expose an erroring health endpoint
-if ais_agent is not None:
-    if hasattr(ais_agent, "app"):
-        logger.info("Including ais_agent routes under /mcp")
-        try:
-            app.include_router(ais_agent.app.router, prefix="/mcp")
-        except Exception:
-            logger.exception("Including ais_agent router failed, falling back to mount")
-            app.mount("/mcp", ais_agent.app)
-    else:
-        logger.error("ais_agent module imported but has no 'app' attribute")
+@app.get("/mcp/ais/health", tags=["Health"])
+async def health(request: Request):
+    return await ais_agent.health(request)
 
-    # health delegates to ais_agent.health if present
-    @app.get("/health")
-    async def health():
-        health_fn = getattr(ais_agent, "health", None)
-        if callable(health_fn):
-            try:
-                return await health_fn(None)
-            except Exception as e:
-                logger.exception("ais_agent.health failed: %s", e)
-        return {"status": "ok", "source": "mcp_bridge"}
 
-    # Serve a local copy of the AIS OpenAPI YAML at /mcp/openapi.yaml (if present)
-    OPENAPI_YAML = REPO_ROOT / "mcp_server" / "ais_openapi.yaml"
+# ----- AOI endpoints -----
+@app.get("/mcp/ais/aoi", tags=["AOI"])
+async def list_aois(request: Request):
+    return await ais_agent.list_aois(request)
 
-    @app.get("/mcp/openapi.yaml")
-    async def openapi_yaml():
-        if OPENAPI_YAML.exists():
-            return FileResponse(str(OPENAPI_YAML), media_type="application/yaml")
-        return JSONResponse({"error": "openapi.yaml not found"}, status_code=404)
 
-else:
-    # Import failed; expose helpful health endpoint explaining missing package/import error
-    logger.error("ais_agent could not be imported: %s", import_error)
+@app.get("/mcp/ais/aoi/{aoi_id}", tags=["AOI"])
+async def get_aoi(
+    aoi_id: str = FPath(..., description="AOI identifier"),
+    request: Request = None,
+):
+    return await ais_agent.get_aoi(aoi_id, request)
 
-    @app.get("/health")
-    async def health_miss():
-        msg = {
-            "status": "error",
-            "message": "ais_agent package not importable in this container",
-            "hint": "Set AIS_AGENT_PATH env var to a mounted path with ais_agent or install it into the image",
-        }
-        if import_error:
-            msg["import_error"] = str(import_error)
-        return JSONResponse(msg, status_code=500)
+
+# ----- Vessels in AOI -----
+@app.get("/mcp/ais/vessels/aoi", tags=["Vessels"])
+async def vessels_in_aoi(
+    request: Request,
+    aoi_id: Optional[str] = Query(None, description="Registered AOI id; alternative to bbox"),
+    bbox: Optional[str] = Query(None, description="minLon,minLat,maxLon,maxLat (WGS84)"),
+    timespan: Optional[int] = Query(60, description="Minutes back"),
+    shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
+    msgtype: str = Query("simple", description="simple | extended | full"),
+):
+    return await ais_agent.vessels_in_aoi(request, aoi_id, bbox, timespan, shiptype, msgtype)
+
+
+# ----- Vessels nearby -----
+@app.get("/mcp/ais/vessels/nearby", tags=["Vessels"])
+async def vessels_nearby(
+    request: Request,
+    lat: Optional[float] = Query(None, ge=-90, le=90, description="Latitude (WGS84)"),
+    lon: Optional[float] = Query(None, ge=-180, le=180, description="Longitude (WGS84)"),
+    radius_nm: float = Query(50.0, gt=0, le=1000, description="Radius in nautical miles"),
+    aoi_id: Optional[str] = Query(None, description="If provided (bbox AOI), its centroid is used"),
+    timespan: Optional[int] = Query(60, description="Minutes back"),
+    shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
+    msgtype: str = Query("simple", description="simple | extended | full"),
+):
+    return await ais_agent.vessels_nearby(
+        request, lat, lon, radius_nm, aoi_id, timespan, shiptype, msgtype
+    )
+
+
+# ----- Vessel info -----
+@app.get("/mcp/ais/vessel/info", tags=["Vessels"])
+async def vessel_info(
+    request: Request,
+    mmsi: Optional[str] = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str] = Query(None, description="IMO number"),
+    shipname: Optional[str] = Query(None, description="Ship Name"),
+):
+    return await ais_agent.vessel_info(request, mmsi, imo, shipname)
+
+
+# ----- Vessel photo -----
+@app.get("/mcp/ais/vessel/photo", tags=["Vessels"])
+async def vessel_photo(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provide vessel id"),
+    mmsi: Optional[str] = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str] = Query(None, description="IMO number"),
+):
+    return await ais_agent.vessel_photo(request, ship_id, mmsi, imo)
+
+
+# ----- Vessel track -----
+@app.get("/mcp/ais/vessel/track", tags=["Tracks"])
+async def vessel_track(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    mmsi: Optional[str] = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str] = Query(None, description="IMO number"),
+    fromdate: Optional[str] = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str] = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    days: Optional[int] = Query(
+        None, description="The number of days, starting from the time of request and going backwards"
+    ),
+):
+    return await ais_agent.vessel_track(request, ship_id, mmsi, imo, fromdate, todate, days)
+
+
+# ----- Vessel Events -----
+@app.get("/mcp/ais/vessel/events", tags=["Events"])
+async def vessel_events(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    mmsi: Optional[str] = Query(None, description="Maritime Mobile Service Identity"),
+    imo: Optional[str] = Query(None, description="IMO number"),
+    fromdate: Optional[str] = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str] = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int] = Query(
+        None,
+        description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880",
+    ),
+):
+    return await ais_agent.vessel_events(
+        request, ship_id, mmsi, imo, fromdate, todate, timespan
+    )
+
+
+# ----- Single Vessel Portcalls -----
+@app.get("/mcp/ais/vessel/portcalls", tags=["PortCalls"])
+async def vessel_portcalls(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    fromdate: Optional[str] = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str] = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int] = Query(
+        None,
+        description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880",
+    ),
+):
+    return await ais_agent.vessel_portcalls(
+        request, ship_id, fromdate, todate, timespan
+    )
+
+
+# ----- Portcalls -----
+@app.get("/mcp/ais/portcalls", tags=["PortCalls"])
+async def portcalls(
+    request: Request,
+    port_id: Optional[str] = Query(None, description="Port id or UN/LOCODE"),
+    fromdate: Optional[str] = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    todate: Optional[str] = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    timespan: Optional[int] = Query(
+        None,
+        description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880",
+    ),
+):
+    return await ais_agent.portcalls(
+        request, port_id, fromdate, todate, timespan
+    )
+
+
+# ----- Routing -----
+@app.get("/mcp/ais/routing/distance_to_port", tags=["Routing"])
+async def distance_to_port(
+    request: Request,
+    start_port: Optional[str] = Query(None, description="Starting Port UN/LOCODE"),
+    end_port: Optional[str] = Query(None, description="Ending Port UN/LOCODE"),
+):
+    return await ais_agent.distance_to_port(request, start_port, end_port)
+
+
+@app.get("/mcp/ais/routing/vessel_route_to_port", tags=["Routing"])
+async def vessel_route_to_port(
+    request: Request,
+    ship_id: Optional[str] = Query(None, description="Provider vessel id"),
+    imo: Optional[str] = Query(None, description="Provider vessel imo"),
+    mmsi: Optional[str] = Query(None, description="Provider vessel mmsi"),
+    port_id: Optional[str] = Query(None, description="Ending Port UN/LOCODE"),
+):
+    return await ais_agent.vessel_route_to_port(
+        request, ship_id, imo, mmsi, port_id
+    )
 

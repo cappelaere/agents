@@ -6,6 +6,7 @@ build:
 	docker compose build ais_agent
 	docker compose build ports_agent
 	docker compose build map_agent
+	docker compose build mcp_server
 
 deploy:
 	docker compose up --no-deps -d metoc_agent
@@ -13,6 +14,7 @@ deploy:
 	docker compose up --no-deps -d ais_agent
 	docker compose up --no-deps -d ports_agent
 	docker compose up --no-deps -d map_agent
+	docker compose up --no-deps -d mcp_server
 
 down:
 	docker compose down metoc_agent

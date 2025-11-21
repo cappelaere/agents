@@ -7,7 +7,9 @@ services:
     container_name: metoc_agent
     ports:
       - "8080:8080"
-    env_file: ./.env.sh
+    env_file: ./.env
+    volumes:
+      - ./agents/metoc_agent:/app
 
 
   seaice_agent:
@@ -17,8 +19,9 @@ services:
     container_name: seaice_agent
     ports:
       - "8090:8090"
-    env_file: ./.env.sh
+    env_file: ./.env
     volumes:
+      - ./agents/seaice_agent:/app
       - /home/vpcuser/agents/data:/home/vpcuser/agents/data
 
   ais_agent:
@@ -28,20 +31,10 @@ services:
     container_name: ais_agent
     ports:
       - "8100:8100"
-    env_file: ./.env.sh
-
-  mcp_server:
-    build:
-      context: ./mcp_server
-    image: mcp_server:latest
-    container_name: mcp_server
-    ports:
-      - "8200:8080"
-    env_file: ./.env.sh
-    environment:
-      - AIS_AGENT_PATH=/app/ais_agent
+    env_file: ./.env
     volumes:
-      - ./agents/ais_agent:/app/ais_agent:ro
+      - ./agents/ais_agent:/app
+
 
   ports_agent:
     build:
@@ -50,7 +43,9 @@ services:
     container_name: ports_agent
     ports:
       - "8110:8110"
-    env_file: ./.env.sh
+    env_file: ./.env
+    volumes:
+      - ./agents/ports_agent:/app
     
   map_agent:
     build:
@@ -59,12 +54,25 @@ services:
     container_name: map_agent
     ports:
       - "8120:8120"
-    env_file: ./.env.sh
+    env_file: ./.env
+    volumes:
+      - ./agents/map_agent:/app
 
+  mcp_server:
+    build:
+      context: ./mcp_server
+    image: mcp_server:latest
+    container_name: mcp_server
+    ports:
+      - "8200:8200"
+    env_file: ./.env
+    volumes:
+      # Mount the local mcp_server source into the container for live reload
+      - ./mcp_server:/app
 
 secrets:
   env:
-    file: ./.env.sh
+    file: ./.env
 
 volumes:
   pgdata:
