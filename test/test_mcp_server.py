@@ -43,6 +43,13 @@ def test_mcp_docs_and_openapi(client: httpx.Client):
     assert "/mcp/ais/vessels/nearby" in data.get("paths", {})
 
 
+def test_mcp_openapi_yaml_available(client: httpx.Client):
+    # Curated AIS OpenAPI YAML should be served for orchestrators
+    resp = client.get("/mcp/openapi.yaml")
+    assert resp.status_code == 200
+    assert "application/yaml" in resp.headers.get("content-type", "")
+
+
 def test_ais_health_via_bridge(client: httpx.Client):
     resp = client.get("/mcp/ais/health")
     assert resp.status_code == 200

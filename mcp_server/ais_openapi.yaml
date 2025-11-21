@@ -10,10 +10,8 @@ info:
     X-Session-Id: X-Session-Id
     
 servers:
-  - url: http://150.240.3.116:8100/ais
-    description: remote production server for the AIS agent
-  - url: http://localhost:8100/ais
-    description: Local development server for the AIS agent
+  - url: http://localhost:8200/mcp/ais
+    description: MCP bridge to the local AIS agent (via mcp_server)
 
 x-examples:
   vessel_sample: &id002
@@ -247,7 +245,6 @@ paths:
                             type: number
                   meta:
                     type: object
-          # Errors are returned as generic error objects
 
   /aoi/{aoi_id}:
     get:
@@ -733,3 +730,5 @@ x-llm-usage:
             mmsi: '366123456'
             start: '2025-10-10T00:00:00Z'
             end: '2025-10-13T23:59:59Z'
+
+

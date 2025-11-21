@@ -4,5 +4,6 @@
   "remote.SSH.showLoginTerminal": false,
   "remote.SSH.serverInstallPath": "~/.vscode-server",
   "remote.SSH.serverListenOnSocket": true,
-  "terminal.integrated.enablePersistentSessions": false
+  "terminal.integrated.enablePersistentSessions": false,
+  "terminal.integrated.defaultProfile.osx": "Agents Dev Shell"
 }

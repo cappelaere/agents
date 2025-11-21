@@ -15,6 +15,7 @@ sudo dnf install -y net-tools
 python3.11 -m venv venv
 source venv/bin/activate
 ```
+
 ## ADK Installation or upgrade
 ```
 python -m pip install --upgrade pip setuptools wheel

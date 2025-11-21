@@ -17,6 +17,9 @@ from ais_agent import ais_agent
 logger = logging.getLogger("mcp_server")
 logging.basicConfig(level=logging.INFO)
 
+HERE = Path(__file__).resolve().parent
+OPENAPI_YAML = HERE / "ais_openapi.yaml"
+
 # Bridge FastAPI app: docs and openapi are served under /mcp/*
 app = FastAPI(
     title="MCP Bridge",
@@ -25,6 +28,14 @@ app = FastAPI(
     redoc_url="/mcp/redoc",
     openapi_url="/mcp/openapi.json",
 )
+
+
+@app.get("/mcp/openapi.yaml")
+async def openapi_yaml():
+    """Serve the curated AIS OpenAPI YAML used by orchestrators such as watsonx."""
+    if OPENAPI_YAML.exists():
+        return FileResponse(str(OPENAPI_YAML), media_type="application/yaml")
+    return JSONResponse({"error": "openapi.yaml not found"}, status_code=404)
 
 # ----- Health -----
 @app.get("/health", tags=["Health"])
