@@ -7,7 +7,7 @@
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Query
 from typing import Dict, Any, Optional
 import uuid, socket, time, logging
 from datetime import datetime
@@ -78,8 +78,9 @@ async def health(request: Request):
 async def geocode_search(request: Request, 
     name: str, 
     count: int = 10, 
+    format: str = "json",
     language: Optional[str] = None, 
-    format: str = "json"):
+    session_id: Optional[str] = Query(default=None)):
 
     trace = trace_start(request)
 
@@ -103,10 +104,11 @@ async def geocode_search(request: Request,
 async def atmosphere_forecast(request: Request, 
     lat: float, 
     lon: float, 
+    current_weather: bool = True, 
     hourly: Optional[str] = None, 
     daily: Optional[str] = None,
-    current_weather: bool = True, 
-    timezone: Optional[str] = None, forecast_days: int = 7):
+    timezone: Optional[str] = None, forecast_days: int = 7,
+    session_id: Optional[str] = Query(default=None)):
 
     trace = trace_start(request)
 
@@ -129,6 +131,7 @@ async def atmosphere_forecast(request: Request,
 @tool()
 @app.get("/metoc/atmosphere/archive", tags=["Atmosphere"])
 async def atmosphere_archive(request: Request, 
+    # session_id: str,    
     lat: float, 
     lon: float, 
     start_date: str, 
@@ -158,6 +161,7 @@ async def atmosphere_archive(request: Request,
 @tool()
 @app.get("/metoc/marine/forecast", tags=["Marine"])
 async def marine_forecast(request: Request, 
+    # session_id: str,    
     lat: float, 
     lon: float, 
     hourly: Optional[str] = None, 

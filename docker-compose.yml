@@ -30,6 +30,19 @@ services:
       - "8100:8100"
     env_file: ./.env.sh
 
+  mcp_server:
+    build:
+      context: ./mcp_server
+    image: mcp_server:latest
+    container_name: mcp_server
+    ports:
+      - "8200:8080"
+    env_file: ./.env.sh
+    environment:
+      - AIS_AGENT_PATH=/app/ais_agent
+    volumes:
+      - ./agents/ais_agent:/app/ais_agent:ro
+
   ports_agent:
     build:
       context: ./agents/ports_agent
@@ -49,74 +62,6 @@ services:
     env_file: ./.env.sh
 
 
-  postgres:
-    image: postgres:15
-    container_name: langfuse-db
-    restart: always
-    environment:
-      POSTGRES_USER: langfuse
-      POSTGRES_PASSWORD: langfusepass
-      POSTGRES_DB: langfuse
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-
-  langfuse:
-    image: langfuse/langfuse:latest
-    container_name: langfuse-app
-    restart: always
-    depends_on:
-      - postgres
-      - clickhouse
-    environment:
-      DATABASE_URL: postgres://langfuse:langfusepass@postgres:5432/langfuse
-      NEXTAUTH_SECRET: supersecretkey
-      NEXTAUTH_URL: "http://150.240.3.115" # or http://... while testing
-      SALT: "Valentine"
-
-      # --- ClickHouse (analytics) ---
-      # CLICKHOUSE_URL: http://default:yourpassword@clickhouse:8123
-      # CLICKHOUSE_MIGRATION_URL: http://default:yourpassword@clickhouse:8123
-
-      CLICKHOUSE_URL: "http://clickhouse:8123"
-      CLICKHOUSE_MIGRATION_URL: "clickhouse://clickhouse:9000"
-      CLICKHOUSE_USER: "default"
-      CLICKHOUSE_PASSWORD: "mypassword"         # set if you secure ClickHouse
-      CLICKHOUSE_DB: "default"
-      CLICKHOUSE_CLUSTER_ENABLED: "false"
-
-      # Optional: telemetry
-      TELEMETRY_ENABLED: "true"
-
-    ports:
-      - "3000:3000"
-
-  clickhouse:
-    image: clickhouse/clickhouse-server:latest
-    ports:
-      - "8123:8123"
-      - "9000:9000"
-    environment:
-      CLICKHOUSE_USER: default
-      CLICKHOUSE_PASSWORD: "mypassword"
-    ulimits:
-      nofile:
-        soft: 262144
-        hard: 262144
-    volumes:
-      - clickhouse_data:/var/lib/clickhouse
-
-  # redis:
-  #   image: valkey/valkey:latest
-  #   container_name: langfuse_redis
-  #   restart: unless-stopped
-  #   command: ["valkey-server", "--requirepass", "redis_password"]   # CHANGEME
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis_data:/data
-      
 secrets:
   env:
     file: ./.env.sh

@@ -21,9 +21,9 @@ servers:
     description: Production server
   - url: http://localhost:8080/metoc
     description: Local development
-security:
-  - ApiKeyAuth: []
-  - BearerAuth: []
+# security:
+#   - ApiKeyAuth: []
+#   - BearerAuth: []
 tags:
   - name: Health
   - name: Geocoder
@@ -42,6 +42,8 @@ paths:
           headers:
             X-Request-ID:
               $ref: '#/components/headers/XRequestID'
+            #X-Sesssion-ID:
+            #  $ref: '#/components/headers/XSessionId'
             X-Response-Time-MS:
               $ref: '#/components/headers/XResponseTimeMS'
           content:
@@ -75,12 +77,14 @@ paths:
         - $ref: '#/components/parameters/Count'
         - $ref: '#/components/parameters/Language'
         - $ref: '#/components/parameters/Format'
+        - $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Geocoding results
           headers:
             X-Request-ID: { $ref: '#/components/headers/XRequestID' }
+            # X-Sesssion-ID: { $ref: '#/components/headers/XSessionId' }
             X-Response-Time-MS: { $ref: '#/components/headers/XResponseTimeMS' }
             X-RateLimit-Limit: { $ref: '#/components/headers/XRateLimitLimit' }
             X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
@@ -140,12 +144,14 @@ paths:
         - $ref: '#/components/parameters/CurrentWeather'
         - $ref: '#/components/parameters/Timezone'
         - $ref: '#/components/parameters/ForecastDays'
+        - $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/IdempotencyKey'
       responses:
         '200':
           description: Open‑Meteo forecast payload
           headers:
             X-Request-ID: { $ref: '#/components/headers/XRequestID' }
+            # X-Sesssion-ID: { $ref: '#/components/headers/XSessionId' }
             X-Response-Time-MS: { $ref: '#/components/headers/XResponseTimeMS' }
             X-RateLimit-Limit: { $ref: '#/components/headers/XRateLimitLimit' }
             X-RateLimit-Remaining: { $ref: '#/components/headers/XRateLimitRemaining' }
@@ -195,6 +201,7 @@ paths:
       summary: Historical weather via Open‑Meteo Archive API
       operationId: getAtmosphereArchive
       parameters:
+        #- $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/Lat'
         - $ref: '#/components/parameters/Lon'
         - $ref: '#/components/parameters/StartDate'
@@ -208,6 +215,7 @@ paths:
           description: Open‑Meteo archive payload
           headers:
             X-Request-ID: { $ref: '#/components/headers/XRequestID' }
+            # X-Sesssion-ID: { $ref: '#/components/headers/XSessionId' }
             X-Response-Time-MS: { $ref: '#/components/headers/XResponseTimeMS' }
           content:
             application/json:
@@ -243,6 +251,7 @@ paths:
       summary: Marine forecast via Open‑Meteo Marine API
       operationId: getMarineForecast
       parameters:
+        #- $ref: '#/components/parameters/SessionId'
         - $ref: '#/components/parameters/Lat'
         - $ref: '#/components/parameters/Lon'
         - $ref: '#/components/parameters/Hourly'
@@ -254,6 +263,7 @@ paths:
           description: Open‑Meteo marine payload
           headers:
             X-Request-ID: { $ref: '#/components/headers/XRequestID' }
+            #X-Sesssion-ID: { $ref: '#/components/headers/XSessionId' }
             X-Response-Time-MS: { $ref: '#/components/headers/XResponseTimeMS' }
           content:
             application/json:
@@ -315,7 +325,18 @@ components:
     XRateLimitReset:
       description: UTC epoch seconds when the window resets.
       schema: { type: integer }
+    XSessionId: 
+      description: Session ID to correlate requests within a user session.
+      schema: { type: string }  
   parameters:
+    SessionId:
+      name: session_id
+      in: query
+      required: false
+      schema:
+        type: string
+      description: >
+        Correlation/session ID associated with the Watsonx Orchestrate flow.
     IdempotencyKey:
       name: Idempotency-Key
       in: header

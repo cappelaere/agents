@@ -14,7 +14,6 @@ if not secret_key or not public_key:
 langfuse = Langfuse(secret_key=secret_key, public_key=public_key, host=base_url)
 
 def get_session_id(request):
-    logger.info(f"Request headers: {request.headers}")
     session_id = (
         request.headers.get("x-session-id")
         or request.headers.get("session-id")

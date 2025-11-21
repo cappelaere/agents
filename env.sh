@@ -24,3 +24,9 @@ export HOST=
 
 export WO_INSTANCE=https://api.us-south.watson-orchestrate.cloud.ibm.com/instances/xxxxx
 export WO_API_KEY=bbbb
+export ENV_NAME=nnc
+
+# Langfuse Project
+export LANGFUSE_SECRET_KEY=""
+export LANGFUSE_PUBLIC_KEY=""
+export LANGFUSE_BASE_URL=""
