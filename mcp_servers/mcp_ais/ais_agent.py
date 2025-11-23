@@ -7,12 +7,11 @@ import os, json, math, hashlib, logging, sys, time
 from datetime import datetime
 from typing import Optional, Dict, Any, Tuple, List
 from pathlib import Path
-from .ais_vessel_info import (
+from ais_vessel_info import (
     fetch_vessel_info_by_imo,
     fetch_vessel_info_by_mmsi,
     fetch_vessel_info_by_name,
 )
-from .langfuse_utils import trace_start, trace_end, trace_flush
 
 import httpx
 from fastapi import Query, Header, HTTPException, Path, Request
@@ -32,7 +31,6 @@ formatter = logging.Formatter(
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(LOG_LEVEL)
-logger.info("***** Starting logger...")
 
 APP_NAME                    = "ais_agent"
 APP_VERSION                 = "0.2.0"
@@ -64,13 +62,6 @@ SHIPTYPE_NAME_TO_CODE = {
 AOI_MSGTYPES = {"simple", "extended", "full"}
 
 SENSITIVE_KEYS_DEFAULT = {"apikey", "api_key", "token", "auth", "authorization"}
-
-# Initialize LangFuse
-from langfuse import Langfuse
-langfuse = Langfuse(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST"))
 
 # ----- Models -----
 class GovernanceMeta(BaseModel):
@@ -282,12 +273,11 @@ async def health(request: Request):
     ok, detail = True, "ok"
     logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
     meta = GovernanceMeta(
-            source=APP_NAME,
-            endpoint=fq(request),
-            fetchedAt=now_iso(),
-            version=APP_VERSION)
-    
-    trace_flush()
+        source=APP_NAME,
+        endpoint=fq(request),
+        fetchedAt=now_iso(),
+        version=APP_VERSION,
+    )
 
     return JSONResponse({
         "status": "ok" if ok else "degraded",
@@ -299,8 +289,6 @@ async def health(request: Request):
 
 # ----- AOI endpoints -----
 async def list_aois(request: Request):
-    trace = trace_start(request)
-
     response = JSONResponse({
         "items": AOI.list(),
         "meta": {
@@ -312,17 +300,14 @@ async def list_aois(request: Request):
         },
     })
 
-    trace_end(trace, response)
     return response
 
 # ----- AOI -----
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
-    trace = trace_start(request)
-
     feat = AOI.get(aoi_id)
     bbox = feat.properties.get("bbox")
     aoi_hash = sha256_hex(canonical_json({"properties": feat.properties, "geometry": feat.geometry}))
-    response = JSONResponse({
+    return JSONResponse({
         "feature": feat.dict(),
         "meta": {
             "endpoint": fq(request),
@@ -335,8 +320,6 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
             "version": APP_VERSION,
         },
     })
-    trace_end(trace, response)
-    return response
 
 # ----- Vessels in AOI -----
 async def vessels_in_aoi(
@@ -347,8 +330,6 @@ async def vessels_in_aoi(
     shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
     msgtype: str = Query("simple", description="simple | extended | full")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_EXPORTVESSELS_KEY
     if msgtype not in AOI_MSGTYPES:
         raise HTTPException(status_code=400, detail=f"Invalid msgtype. Allowed: {sorted(AOI_MSGTYPES)}")
@@ -392,9 +373,7 @@ async def vessels_in_aoi(
             "registryHash": AOI._registry_hash,
             "aoiSource": AOI_PATH,
         })
-    response = JSONResponse({"nodes": payload, "meta": meta_dict})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta_dict})
 
 # ----- Vessels nearby -----
 async def vessels_nearby(
@@ -407,8 +386,6 @@ async def vessels_nearby(
     shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
     msgtype: str = Query("simple", description="simple | extended | full")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_EXPORTVESSELS_KEY
     if msgtype not in AOI_MSGTYPES:
         raise HTTPException(status_code=400, detail=f"Invalid msgtype. Allowed: {sorted(AOI_MSGTYPES)}")
@@ -467,9 +444,7 @@ async def vessels_nearby(
             "registryHash": AOI._registry_hash,
             "aoiSource": AOI_PATH,
         })
-    response =  JSONResponse({"nodes": nodes, "meta": meta_dict})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": nodes, "meta": meta_dict})
 
 # ----- Vessel info -----
 async def vessel_info(
@@ -478,8 +453,6 @@ async def vessel_info(
     imo: Optional[str]      = Query(None, description="IMO number"),
     shipname: Optional[str]     = Query(None, description="Ship Name"),
 ):
-    trace = trace_start(request)
-
     if imo:
         payload = fetch_vessel_info_by_imo(imo, after_cursor=None)
     if mmsi:
@@ -494,9 +467,7 @@ async def vessel_info(
         version=APP_VERSION,
     )
     nodes = payload['data']['vessels']['nodes']
-    response = JSONResponse({"nodes":nodes, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes":nodes, "meta": meta.model_dump()})
 
 # ----- Vessel photo -----
 async def vessel_photo(
@@ -505,8 +476,6 @@ async def vessel_photo(
     mmsi: Optional[str]   = Query(None, description="Maritime Mobile Service Identity"),
     imo: Optional[str]    = Query(None, description="IMO number")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_VESSELPHOTO_KEY
     id_params = make_identifier_params(ship_id,mmsi,imo)
     if mmsi:
@@ -526,9 +495,7 @@ async def vessel_photo(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"node": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"node": payload, "meta": meta.model_dump()})
 
 # ----- Vessel track -----
 async def vessel_track(
@@ -540,8 +507,6 @@ async def vessel_track(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     days: Optional[int]= Query(None, description="The number of days, starting from the time of request and going backwards")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_EXPORTVESSELTRACK_KEY
     params = make_identifier_params(ship_id, mmsi, imo)
     params['protocol'] = 'jsono'
@@ -562,9 +527,7 @@ async def vessel_track(
         version=APP_VERSION,
     )
     
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Vessel Events -----
 async def vessel_events(
@@ -576,8 +539,6 @@ async def vessel_events(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_VESSELEVENTS_KEY
     params = make_identifier_params(ship_id, mmsi, imo)
     params['protocol'] = 'jsono'
@@ -596,9 +557,7 @@ async def vessel_events(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 
 # ----- Single Vessel Portcalls -----
@@ -609,8 +568,6 @@ async def vessel_portcalls(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_PORTCALLS_KEY 
     params = {
         'shipid': ship_id,
@@ -632,9 +589,7 @@ async def vessel_portcalls(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Portcalls -----
 async def portcalls(
@@ -644,8 +599,6 @@ async def portcalls(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
-    trace = trace_start(request)
-
     apikey = AIS_PORTCALLS_KEY 
     params = {
         'portid': port_id,
@@ -667,9 +620,7 @@ async def portcalls(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ----- Routing -----
 async def distance_to_port(
@@ -677,8 +628,6 @@ async def distance_to_port(
     start_port: Optional[str]  = Query(None, description="Starting Port UN/LOCODE"),
     end_port: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
 ):
-    trace = trace_start(request)
-
     apikey = AIS_ROUTING_KEY 
     params = {
         'port_start_id': start_port,
@@ -696,9 +645,7 @@ async def distance_to_port(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 
 # ------------- Vessel Routing -----------------
 async def vessel_route_to_port(
@@ -708,8 +655,6 @@ async def vessel_route_to_port(
     mmsi: Optional[str] = Query(None, description="Provider vessel mmsi"),
     port_id: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
 ):
-    trace = trace_start(request)
-
     apikey = AIS_ROUTING_KEY 
     params = {
         'port_target_id': port_id,
@@ -733,7 +678,5 @@ async def vessel_route_to_port(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
-    trace_end(trace, response)
-    return response
+    return JSONResponse({"nodes": payload, "meta": meta.model_dump()})
 

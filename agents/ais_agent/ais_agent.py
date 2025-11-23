@@ -3,6 +3,22 @@
 # Run:  uvicorn ais_agent:app --host 0.0.0.0 --port 8100 --reload
 # Deps: pip install fastapi uvicorn httpx pydantic
 
+"""
+AIS REST→REST gateway with AOI registry and governance metadata.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+This module exposes a FastAPI application that fronts upstream AIS services
+and enriches responses with governance metadata (hashes, bounding boxes,
+source files, and fully-qualified endpoint URLs).
+
+Typical usage:
+
+    uvicorn ais_agent:app --host 0.0.0.0 --port 8100 --reload
+
+Required dependencies include FastAPI, Uvicorn, httpx, and pydantic.
+"""
+
 from __future__ import annotations
 import os, json, math, hashlib, logging, sys, time
 from datetime import datetime
@@ -69,8 +85,28 @@ langfuse = Langfuse(
     secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
     host=os.getenv("LANGFUSE_HOST"))
 
-# ----- Models -----
 class GovernanceMeta(BaseModel):
+    """Governance metadata attached to AIS responses.
+
+    This model captures provenance and integrity information for responses
+    returned by this service, including hashes of request variables, AOI
+    registry hashes, upstream endpoint templates, and source file paths.
+
+    Attributes:
+        source: Short identifier for the logical source application.
+        endpoint: Fully qualified endpoint path for this response.
+        variablesHash: Hash of key input variables used to produce the result.
+        fetchedAt: ISO-8601 timestamp (UTC) when the data was fetched.
+        version: Application version string.
+        upstreamEndpoint: Template for the upstream AIS endpoint.
+        aoiEndpoint: Logical endpoint used to fetch AOI metadata, if any.
+        aoiId: AOI identifier when a specific AOI is involved.
+        aoiHash: Hash representing the AOI geometry and properties.
+        bbox: Bounding box as [minLon, minLat, maxLon, maxLat].
+        registryHash: Hash of the AOI registry file contents.
+        aoiSource: Path or identifier for the AOI registry source.
+    """
+
     source: str
     endpoint: str
     variablesHash: Optional[str] = None
@@ -84,26 +120,78 @@ class GovernanceMeta(BaseModel):
     registryHash: Optional[str] = None
     aoiSource: Optional[str] = None
 
+
 # ----- Helpers -----
 def now_iso() -> str:
+    """Return the current UTC time in ISO-8601 format with a trailing 'Z'."""
+
     return datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
+
 def sha256_hex(b: bytes) -> str:
+    """Compute a hex-encoded SHA-256 hash prefixed with ``sha256:``."""
+
     return "sha256:" + hashlib.sha256(b).hexdigest()
 
-def canonical_json(obj) -> bytes:
+
+def canonical_json(obj: Any) -> bytes:
+    """Return a canonical JSON representation of an object as UTF-8 bytes.
+
+    The JSON is rendered with sorted keys and compact separators to ensure
+    stable hashing across runs and environments.
+
+    Args:
+        obj: Arbitrary JSON-serializable object.
+
+    Returns:
+        bytes: Canonical JSON encoding of the object.
+    """
+
     return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
 
+
 def vhash(d: Dict[str, Any]) -> str:
+    """Return a SHA-256 hash for a dictionary using canonical JSON encoding."""
+
     return sha256_hex(canonical_json(d))
 
+
 def resolve_api_key(header_key: Optional[str]) -> str:
+    """Resolve the AIS upstream API key from a header value or environment.
+
+    Args:
+        header_key: API key provided via the ``X-Upstream-Api-Key`` header.
+
+    Returns:
+        str: The resolved upstream API key.
+
+    Raises:
+        HTTPException: If no key is available from either the header or environment.
+    """
+
     key = header_key or ENV_KEY
     if not key:
-        raise HTTPException(status_code=401, detail="Missing API key. Provide X-Upstream-Api-Key or set AIS_KEY.")
+        raise HTTPException(
+            status_code=401,
+            detail="Missing API key. Provide X-Upstream-Api-Key or set AIS_KEY.",
+        )
     return key
 
+
 async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | str:
+    """Perform a GET request against the configured upstream AIS REST API.
+
+    Args:
+        path: Path segment to append to ``UPSTREAM_BASE``.
+        params: Query string parameters to send to the upstream service.
+
+    Returns:
+        dict | str: Parsed JSON body if the upstream returns JSON, otherwise raw text.
+
+    Raises:
+        HTTPException: If the upstream returns a 4xx/5xx status code.
+    """
+
     url = f"{UPSTREAM_BASE}{path}"
 
     logger.info(f"upstream_get {url} {params}")
@@ -114,7 +202,19 @@ async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | st
         ctype = r.headers.get("content-type", "")
         return r.json() if "application/json" in ctype else r.text
 
+
 def bbox_around_point_nm(lon: float, lat: float, radius_nm: float) -> Tuple[float, float, float, float]:
+    """Compute a bounding box around a point given a radius in nautical miles.
+
+    Args:
+        lon: Center longitude in degrees (WGS84).
+        lat: Center latitude in degrees (WGS84).
+        radius_nm: Radius around the point in nautical miles.
+
+    Returns:
+        tuple: Bounding box as (minLon, minLat, maxLon, maxLat).
+    """
+
     radius_km = radius_nm * 1.852
     dlat = radius_km / 111.0
     dlon = radius_km / (111.0 * max(0.1, math.cos(math.radians(lat))))
@@ -163,6 +263,18 @@ def haversine_km(lat1, lon1, lat2, lon2) -> float:
     return R * c
 
 def extract_lat_lon(rec: Dict[str, Any]) -> Tuple[Optional[float], Optional[float]]:
+    """Extract latitude and longitude from a generic AIS record.
+
+    This helper looks for multiple common key variants (e.g. ``lat``,
+    ``latitude``, ``y``) and safely coerces them to floats.
+
+    Args:
+        rec: Dictionary-like record from the upstream AIS API.
+
+    Returns:
+        tuple: A pair ``(lat, lon)`` in degrees, or ``(None, None)`` if parsing fails.
+    """
+
     lower = {k.lower(): v for k, v in rec.items()} if isinstance(rec, dict) else {}
     lat = lower.get("lat") or lower.get("latitude") or lower.get("y")
     lon = lower.get("lon") or lower.get("long") or lower.get("longitude") or lower.get("x")
@@ -173,7 +285,22 @@ def extract_lat_lon(rec: Dict[str, Any]) -> Tuple[Optional[float], Optional[floa
         lat, lon = None, None
     return lat, lon
 
+
 def normalize_shiptype(shiptype: Optional[str]) -> Optional[int]:
+    """Normalize a ship type string or code to a canonical integer code.
+
+    Args:
+        shiptype: Ship type as a string code (e.g. ``"2"``) or name
+            (e.g. ``"fishing"``).
+
+    Returns:
+        Optional[int]: Canonical AIS ship type code, or ``None`` if no
+        ship type was provided.
+
+    Raises:
+        HTTPException: If an unknown ship type name or code is provided.
+    """
+
     if not shiptype:
         return None
     s = shiptype.strip().lower()
@@ -186,14 +313,34 @@ def normalize_shiptype(shiptype: Optional[str]) -> Optional[int]:
         raise HTTPException(status_code=400, detail=f"Invalid shiptype name. Allowed: {sorted(SHIPTYPE_NAME_TO_CODE.keys())}")
     return SHIPTYPE_NAME_TO_CODE[s]
 
+
 def make_identifier_params(ship_id: Optional[str], mmsi: Optional[str], imo: Optional[str]) -> Dict[str, Any]:
+    """Build identifier query parameters for upstream vessel lookups.
+
+    Exactly one of ``ship_id``, ``mmsi``, or ``imo`` must be provided.
+
+    Args:
+        ship_id: Upstream vessel identifier.
+        mmsi: Maritime Mobile Service Identity.
+        imo: IMO vessel number.
+
+    Returns:
+        dict: Query parameter dictionary using upstream key names.
+
+    Raises:
+        HTTPException: If zero or more than one identifier is provided.
+    """
+
     ids = [x for x in [ship_id, mmsi, imo] if x]
     if len(ids) != 1:
         raise HTTPException(status_code=400, detail="Provide exactly ONE of: ship_id, mmsi, or imo.")
     params: Dict[str, Any] = {}
-    if ship_id: params["shipid"] = ship_id   # upstream key is 'shipid'
-    if mmsi:    params["mmsi"] = mmsi
-    if imo:     params["imo"] = imo
+    if ship_id:
+        params["shipid"] = ship_id   # upstream key is 'shipid'
+    if mmsi:
+        params["mmsi"] = mmsi
+    if imo:
+        params["imo"] = imo
     return params
 
 def fq(
@@ -202,12 +349,17 @@ def fq(
     overrides: dict[str, str | int | float] | None = None,
     include_existing: bool = True,
 ) -> str:
-    """
-    Build a fully-qualified URL for the incoming request.
+    """Build a fully-qualified URL for an incoming FastAPI request.
 
-    - include_existing: keep the request's current query parameters
-    - sanitize_keys: remove these query keys (case-insensitive)
-    - overrides: add/override these query parameters
+    Args:
+        request: FastAPI request instance.
+        sanitize_keys: Optional set of query parameter keys to remove
+            (case-insensitive). Defaults to ``SENSITIVE_KEYS_DEFAULT``.
+        overrides: Optional mapping of query parameters to add/override.
+        include_existing: Whether to preserve existing query parameters.
+
+    Returns:
+        str: Fully-qualified URL with sanitized and overridden query params.
     """
     sanitize = {k.lower() for k in (sanitize_keys or SENSITIVE_KEYS_DEFAULT)}
 
@@ -235,7 +387,8 @@ def fq(
     return str(url)
 
 def upstream_template(path: str) -> str:
-    # Show the upstream endpoint template without secrets
+    """Return a human-readable upstream endpoint template without secrets."""
+
     base = UPSTREAM_BASE.rstrip("/")
     return f"{base}{path}"
 
@@ -246,14 +399,29 @@ class AoiFeature(BaseModel):
     geometry: Dict[str, Any]
 
 class AoiRegistry:
+    """In-memory AOI registry loaded from a GeoJSON file.
+
+    The registry indexes features by id or name and exposes convenience
+    methods for listing AOIs, fetching individual features, and extracting
+    canonical bounding boxes.
+    """
+
     def __init__(self, path: str):
+        """Initialize the registry and eagerly load the GeoJSON file.
+
+        Args:
+            path: Filesystem path to the AOI GeoJSON file.
+        """
+
         self.path = path
         self._features: Dict[str, AoiFeature] = {}
         self._registry_hash: str = ""
         self._raw_geojson: Dict[str, Any] = {}
         self._load()
 
-    def _load(self):
+    def _load(self) -> None:
+        """Load AOI features and registry hash from disk."""
+
         if not os.path.exists(self.path):
             self._features = {}
             self._registry_hash = ""
@@ -273,6 +441,11 @@ class AoiRegistry:
             self._features[fid] = AoiFeature(type=feat["type"], properties=props, geometry=feat.get("geometry") or {})
 
     def list(self) -> List[Dict[str, Any]]:
+        """Return a lightweight list of AOI descriptors.
+
+        Each item includes a stable id, a display name, type, and bbox.
+        """
+
         out = []
         for fid, f in self._features.items():
             out.append({
@@ -284,11 +457,23 @@ class AoiRegistry:
         return out
 
     def get(self, fid: str) -> AoiFeature:
+        """Return the full AOI feature for a given identifier.
+
+        Raises:
+            HTTPException: If the AOI id is not present in the registry.
+        """
+
         if fid not in self._features:
             raise HTTPException(status_code=404, detail=f"AOI '{fid}' not found")
         return self._features[fid]
 
     def bbox_for(self, fid: str) -> Tuple[float, float, float, float]:
+        """Return a validated bbox for a bbox-type AOI.
+
+        Raises:
+            HTTPException: If the AOI is not bbox-typed or has an invalid bbox.
+        """
+
         feat = self.get(fid)
         if feat.properties.get("type") != "bbox":
             raise HTTPException(status_code=400, detail=f"AOI '{fid}' is not a bbox type")
@@ -310,6 +495,10 @@ app = FastAPI(
 @tool()
 @app.get("/ais/health", tags=["Health"])
 async def health(request: Request):
+    """Health probe for the AIS gateway.
+
+    Returns basic status information along with governance metadata.
+    """
     ok, detail = True, "ok"
     logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
     meta = GovernanceMeta(
@@ -332,6 +521,7 @@ async def health(request: Request):
 @tool()
 @app.get("/ais/aoi", tags=["AOI"])
 async def list_aois(request: Request):
+    """List all configured Areas of Interest (AOIs)."""
     trace = trace_start(request)
 
     response = JSONResponse({
@@ -352,6 +542,7 @@ async def list_aois(request: Request):
 @tool()
 @app.get("/ais/aoi/{aoi_id}", tags=["AOI"])
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
+    """Return the full AOI feature and governance metadata for a single AOI."""
     trace = trace_start(request)
 
     feat = AOI.get(aoi_id)
@@ -384,6 +575,7 @@ async def vessels_in_aoi(
     shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
     msgtype: str = Query("simple", description="simple | extended | full")
 ):
+    """List vessels inside a named AOI or explicit bounding box."""
     trace = trace_start(request)
 
     apikey = AIS_EXPORTVESSELS_KEY
@@ -446,6 +638,7 @@ async def vessels_nearby(
     shiptype: Optional[str] = Query(None, description="2=fishing, 4=high_speed, 6=passenger, 7=cargo, 8=tanker"),
     msgtype: str = Query("simple", description="simple | extended | full")
 ):
+    """List vessels within a radius of a point or AOI centroid."""
     trace = trace_start(request)
 
     apikey = AIS_EXPORTVESSELS_KEY
@@ -520,6 +713,7 @@ async def vessel_info(
     imo: Optional[str]      = Query(None, description="IMO number"),
     shipname: Optional[str]     = Query(None, description="Ship Name"),
 ):
+    """Return detailed vessel information by MMSI, IMO, or ship name."""
     trace = trace_start(request)
 
     if imo:
@@ -549,6 +743,7 @@ async def vessel_photo(
     mmsi: Optional[str]   = Query(None, description="Maritime Mobile Service Identity"),
     imo: Optional[str]    = Query(None, description="IMO number")
 ):
+    """Return vessel photo metadata for a given vessel identifier."""
     trace = trace_start(request)
 
     apikey = AIS_VESSELPHOTO_KEY
@@ -586,6 +781,7 @@ async def vessel_track(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     days: Optional[int]= Query(None, description="The number of days, starting from the time of request and going backwards")
 ):
+    """Return recent track positions for a single vessel."""
     trace = trace_start(request)
 
     apikey = AIS_EXPORTVESSELTRACK_KEY
@@ -624,6 +820,7 @@ async def vessel_events(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
+    """Return recent events (port calls, status changes, etc.) for a vessel."""
     trace = trace_start(request)
 
     apikey = AIS_VESSELEVENTS_KEY
@@ -659,6 +856,7 @@ async def vessel_portcalls(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
+    """Return port calls for a single vessel over a time window."""
     trace = trace_start(request)
 
     apikey = AIS_PORTCALLS_KEY 
@@ -696,6 +894,7 @@ async def portcalls(
     todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     timespan: Optional[int]= Query(None, description="The maximum age, in minutes, of the returned port calls. Maximum value is 2880")
 ):
+    """Return port calls for a specific port over a time window."""
     trace = trace_start(request)
 
     apikey = AIS_PORTCALLS_KEY 
@@ -731,6 +930,7 @@ async def distance_port(
     start_port: Optional[str]  = Query(None, description="Starting Port UN/LOCODE"),
     end_port: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
 ):
+    """Return routing distance between two ports."""
     trace = trace_start(request)
 
     apikey = AIS_ROUTING_KEY 
@@ -764,6 +964,7 @@ async def distance_port(
     mmsi: Optional[str] = Query(None, description="Provider vessel mmsi"),
     port_id: Optional[str]    = Query(None, description="Ending Port UN/LOCODE"),
 ):
+    """Return a suggested route for a vessel to reach a target port."""
     trace = trace_start(request)
 
     apikey = AIS_ROUTING_KEY 

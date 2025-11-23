@@ -3,6 +3,16 @@
 # Returns clean business JSON (no 'orchestrate' block). Each response includes a
 # fully-qualified URL in 'endpoint' and governance.endpoint_url.
 
+"""
+METOC Open-Meteo Agent API.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+Minimal FastAPI service using Open-Meteo for atmosphere/marine forecasts and
+Open-Meteo Geocoding. Returns clean business JSON (no ``orchestrate`` block),
+and each response includes a fully-qualified URL and a governance block.
+"""
+
 # ensure the directory containing this file is on sys.path so local modules can be imported
 import os, sys
 sys.path.insert(0, os.path.dirname(__file__))
@@ -27,10 +37,14 @@ APP_NAME = "metoc_agent"
 APP_VERSION = "0.2.2"
 
 def _now_iso() -> str:
+    """Return the current UTC time in ISO-8601 format with millisecond precision."""
+
     return datetime.utcnow().isoformat(timespec="milliseconds") + "Z"
 
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next):
+    """Attach a request id and response-time header to every HTTP response."""
+
     rid = request.headers.get("x-request-id") or str(uuid.uuid4())
     request.state.request_id = rid
     t0 = time.perf_counter()
@@ -42,6 +56,8 @@ async def add_request_id_and_timing(request: Request, call_next):
     return response
 
 def _gov(endpoint: str, req: Request, inputs: Dict[str, Any], lineage: Dict[str, Any]) -> Dict[str, Any]:
+    """Build a governance metadata block for METOC responses."""
+
     return {
         "app": APP_NAME,
         "app_version": APP_VERSION,
@@ -63,6 +79,7 @@ def _gov(endpoint: str, req: Request, inputs: Dict[str, Any], lineage: Dict[str,
 @tool()
 @app.get("/metoc/health", tags=["Health"])
 async def health(request: Request):
+    """Health probe for the METOC agent."""
     resp = {
         "status": "ok",
         "endpoint": str(request.url),  # fully-qualified URL in the top-level body
@@ -75,12 +92,15 @@ async def health(request: Request):
 # ---------------- Search --------------------------
 @tool()
 @app.get("/metoc/geocode/search", tags=["Geocoder"])
-async def geocode_search(request: Request, 
-    name: str, 
-    count: int = 10, 
+async def geocode_search(
+    request: Request,
+    name: str,
+    count: int = 10,
     format: str = "json",
-    language: Optional[str] = None, 
-    session_id: Optional[str] = Query(default=None)):
+    language: Optional[str] = None,
+    session_id: Optional[str] = Query(default=None),
+):
+    """Proxy to Open-Meteo geocoding API."""
 
     trace = trace_start(request)
 
@@ -101,14 +121,18 @@ async def geocode_search(request: Request,
 # ----------------- Forecast ------------------------------
 @tool()
 @app.get("/metoc/atmosphere/forecast", tags=["Atmosphere"])
-async def atmosphere_forecast(request: Request, 
-    lat: float, 
-    lon: float, 
-    current_weather: bool = True, 
-    hourly: Optional[str] = None, 
+async def atmosphere_forecast(
+    request: Request,
+    lat: float,
+    lon: float,
+    current_weather: bool = True,
+    hourly: Optional[str] = None,
     daily: Optional[str] = None,
-    timezone: Optional[str] = None, forecast_days: int = 7,
-    session_id: Optional[str] = Query(default=None)):
+    timezone: Optional[str] = None,
+    forecast_days: int = 7,
+    session_id: Optional[str] = Query(default=None),
+):
+    """Fetch atmospheric forecast from Open-Meteo."""
 
     trace = trace_start(request)
 
@@ -130,15 +154,17 @@ async def atmosphere_forecast(request: Request,
 # ------------------ Archive -----------------------------
 @tool()
 @app.get("/metoc/atmosphere/archive", tags=["Atmosphere"])
-async def atmosphere_archive(request: Request, 
-    # session_id: str,    
-    lat: float, 
-    lon: float, 
-    start_date: str, 
-    end_date: str, 
-    hourly: Optional[str] = None, 
-    daily: Optional[str] = None, 
-    timezone: Optional[str] = None):
+async def atmosphere_archive(
+    request: Request,
+    lat: float,
+    lon: float,
+    start_date: str,
+    end_date: str,
+    hourly: Optional[str] = None,
+    daily: Optional[str] = None,
+    timezone: Optional[str] = None,
+):
+    """Fetch archived atmospheric data from Open-Meteo."""
 
     trace = trace_start(request)
 
@@ -160,14 +186,16 @@ async def atmosphere_archive(request: Request,
 # ---------------- Forecast -----------------------
 @tool()
 @app.get("/metoc/marine/forecast", tags=["Marine"])
-async def marine_forecast(request: Request, 
-    # session_id: str,    
-    lat: float, 
-    lon: float, 
-    hourly: Optional[str] = None, 
-    timezone: Optional[str] = None, 
-    forecast_days: int = 5):
-    
+async def marine_forecast(
+    request: Request,
+    lat: float,
+    lon: float,
+    hourly: Optional[str] = None,
+    timezone: Optional[str] = None,
+    forecast_days: int = 5,
+):
+    """Fetch marine forecast variables (waves, currents, etc.) from Open-Meteo."""
+
     trace = trace_start(request)
 
     url = "https://marine-api.open-meteo.com/v1/marine"

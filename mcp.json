@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    
+    "Open METOC Server": {
+      "type": "streamable-http",
+      "url": "http://localhost:8201/mcp",
+      "note": "Open-Meteo tools via MCP"
+    }
+  }
+}

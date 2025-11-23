@@ -1,3 +1,13 @@
+"""
+Helpers for querying vessel ownership and particulars via GraphQL.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+This module wraps the Kpler/MarineTraffic GraphQL endpoint to fetch vessel
+information by IMO, MMSI, or owner/management name. It is used by the AIS
+agent to enrich vessel responses with detailed ownership and particulars.
+"""
+
 import requests
 import json, os
 
@@ -5,8 +15,17 @@ import json, os
 BASE_URL    = "https://api.kpler.marinetraffic.com/v2/vessels/graphql"
 API_KEY     = os.getenv("AIS_OWNERSHIP_KEY", "")
 
-# - 2. Fetch vessel data with pagination
+
 def fetch_vessel_info_by_imo(imo, after_cursor=None):
+    """Fetch detailed vessel information from Kpler/MarineTraffic by IMO.
+
+    Args:
+        imo: IMO vessel identifier.
+        after_cursor: Optional pagination cursor for subsequent pages.
+
+    Returns:
+        dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
+    """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
     query = f"""
     query Vessels {{
@@ -161,6 +180,15 @@ def fetch_vessel_info_by_imo(imo, after_cursor=None):
 
 # =====================================================
 def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
+    """Fetch detailed vessel information from Kpler/MarineTraffic by MMSI.
+
+    Args:
+        mmsi: Maritime Mobile Service Identity.
+        after_cursor: Optional pagination cursor for subsequent pages.
+
+    Returns:
+        dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
+    """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
     query = f"""
     query Vessels {{
@@ -315,6 +343,15 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
 
 # =====================================================
 def fetch_vessel_info_by_name(name, after_cursor=None):
+    """Fetch detailed vessel information from Kpler/MarineTraffic by owner name.
+
+    Args:
+        name: Owner or management name fragment to search (used in a LIKE filter).
+        after_cursor: Optional pagination cursor for subsequent pages.
+
+    Returns:
+        dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
+    """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
     query = f"""
     query Vessels {{

@@ -19,5 +19,7 @@ if [ -f ".env" ]; then
   . .env
   set +a
 fi
+source ~/.bashrc
+nvm use 24
 export PS1="venv> "
 echo "[dev-shell] venv and .env (if present) are loaded."

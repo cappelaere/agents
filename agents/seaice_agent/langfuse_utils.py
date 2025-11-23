@@ -1,3 +1,13 @@
+"""
+Langfuse tracing utilities for the NSIDC Sea Ice Agent.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+These helpers centralize initialization and usage of the Langfuse SDK so that
+FastAPI routes can record rich traces (including session ids and query params)
+without embedding Langfuse-specific logic everywhere.
+"""
+
 from langfuse import observe, Langfuse, get_client
 import os, logging
 
@@ -13,17 +23,23 @@ if not secret_key or not public_key:
 
 langfuse = Langfuse(secret_key=secret_key, public_key=public_key, host=base_url)
 
+
 def get_session_id(request):
+    """Extract a best-effort session id from common HTTP header variants."""
+
     session_id = (
         request.headers.get("x-session-id")
         or request.headers.get("session-id")
         or request.headers.get("session_id")
         or request.headers.get("x-sessionid")
         or request.headers.get("sessionid")
-    )    
+    )
     return session_id
-    
+
+
 def trace_start(request):
+    """Start a Langfuse span for an incoming FastAPI request."""
+
     session_id = get_session_id(request)
     query_inputs = dict(request.query_params)
     inputs = {
@@ -37,12 +53,18 @@ def trace_start(request):
     logger.info(inputs)
     return trace
 
+
 def trace_end(trace, resp):
+    """Finalize a Langfuse span with the given response payload."""
+
     try:
         trace.update(output=resp)
         trace.end()
     except Exception:
         logger.exception("langfuse flush failed")
 
+
 def trace_flush():
+    """Flush all pending Langfuse events to the backend."""
+
     langfuse.flush()

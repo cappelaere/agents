@@ -58,17 +58,36 @@ services:
     volumes:
       - ./agents/map_agent:/app
 
-  mcp_server:
+  mcp_ais:
     build:
-      context: ./mcp_server
-    image: mcp_server:latest
-    container_name: mcp_server
+      context: ./mcp_servers/mcp_ais
+    image: mcp_ais:latest
+    container_name: mcp_ais
     ports:
       - "8200:8200"
     env_file: ./.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8200
+      - MCP_TRANSPORT=http
     volumes:
-      # Mount the local mcp_server source into the container for live reload
-      - ./mcp_server:/app
+      # Mount the local mcp_ais source into the container for live reload
+      - ./mcp_servers/mcp_ais:/app
+
+  mcp_metoc:
+    build:
+      context: ./mcp_servers/mcp_metoc
+    image: mcp_metoc:latest
+    container_name: mcp_metoc
+    ports:
+      - "8201:8201"
+    env_file: ./.env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8201
+      - MCP_TRANSPORT=http
+    volumes:
+      - ./mcp_servers/mcp_metoc:/app/mcp_metoc
 
 secrets:
   env:

@@ -1,3 +1,12 @@
+"""
+Arctic Map Agent (Leaflet) - WebSocket-backed map overlay service.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+This FastAPI app serves a Leaflet-based Arctic map UI and exposes a simple
+ingest endpoint and WebSocket channel so other agents can push GeoJSON
+overlays to connected browsers in real time.
+"""
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response, Body
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -38,6 +47,8 @@ app.add_middleware(
 
 # Simple in-memory WebSocket connection registry
 class ConnectionManager:
+    """In-memory registry for active WebSocket connections."""
+
     def __init__(self):
         self.active_connections: Set[WebSocket] = set()
         self._lock = asyncio.Lock()
@@ -68,6 +79,7 @@ manager = ConnectionManager()
 @tool()
 @app.get("/health")
 async def health():
+    """Basic liveness probe for the map agent."""
     trace_flush()
     return {"status": "ok"}
 
@@ -75,9 +87,7 @@ async def health():
 @tool()
 @app.get("/", response_class=HTMLResponse)
 async def arctic_map(request: Request):
-    """
-    Default endpoint: renders a Leaflet map centered on the Arctic.
-    """
+    """Render the main Leaflet map page centered on the Arctic."""
     return templates.TemplateResponse("index.html", {"request": request})
 
 async def _keepalive_task(websocket: WebSocket, interval_sec: int = 25):
@@ -93,6 +103,7 @@ async def _keepalive_task(websocket: WebSocket, interval_sec: int = 25):
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    """WebSocket endpoint used by browser clients to receive map updates."""
     await manager.connect(websocket)
     keepalive = asyncio.create_task(_keepalive_task(websocket))
     try:
@@ -109,9 +120,9 @@ async def websocket_endpoint(websocket: WebSocket):
 @tool()
 @app.post("/ingest")
 async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
-    """
-    Receives a GeoJSON payload and broadcasts it to all connected map clients.
-    Expected: FeatureCollection/Feature/Geometry object.
+    """Broadcast a GeoJSON payload to all connected map clients.
+
+    Expected: a GeoJSON FeatureCollection, Feature, or Geometry object.
     """
     trace = trace_start(request)
 
@@ -135,6 +146,7 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
 @tool()
 @app.get("/version")
 async def version():
+    """Return basic version/build information for the map agent."""
     return {
         "app": "Arctic Map Agent (Leaflet)",
         "version": os.getenv("APP_VERSION", "0.1.0"),

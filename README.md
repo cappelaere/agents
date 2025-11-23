@@ -110,6 +110,8 @@ docker compose build seaice_agent
 docker compose build ais_agent
 docker compose build ports_agent
 docker compose build map_agent
+docker compose build mcp_ais
+docker compose build mcp_metoc
 
 # Run agents
 docker compose up --no-deps -d metoc_agent
@@ -117,7 +119,8 @@ docker compose up --no-deps -d seaice_agent
 docker compose up --no-deps -d ais_agent
 docker compose up --no-deps -d ports_agent
 docker compose up --no-deps -d map_agent
-docker compose up --no-deps -d mcp_server
+docker compose up --no-deps -d mcp_ais
+docker compose up --no-deps -d mcp_metoc
 
 # follow live logs for a single service
 docker compose logs -f metoc_agent
@@ -125,6 +128,8 @@ docker compose logs -f seaice_agent
 docker compose logs -f ais_agent
 docker compose logs -f ports_agent
 docker compose logs -f map_agent
+docker compose logs -f mcp_ais
+docker compose logs -f mcp_metoc
 
 # last 200 lines + timestamps
 docker compose logs --tail=200 --timestamps metoc_agent
@@ -134,12 +139,14 @@ docker compose logs --since=30m metoc_agent
 
 # Down agent
 docker down metoc_agent
+docker down mcp_ais
+docker down mcp_metoc
 
-## 🔗 MCP Server (AIS Bridge)
+## 🔗 MCP AIS Server (Bridge)
 
-The `mcp_server` service is a thin FastAPI bridge that exposes the AIS agent
-under a `/mcp/ais/...` prefix. It runs in its own container and delegates
-all logic to the bundled `mcp_server/ais_agent` package.
+The `mcp_ais` service is a FastMCP-based MCP server that exposes the AIS agent
+as MCP tools. It runs in its own container and delegates
+all logic to the bundled `mcp_ais/ais_agent.py` module.
 
 - **Port**: 8200 (host) → 8200 (container)
 - **Key endpoints**:
@@ -147,11 +154,11 @@ all logic to the bundled `mcp_server/ais_agent` package.
   - AIS health via bridge: `GET http://localhost:8200/mcp/ais/health`
   - OpenAPI JSON: `GET http://localhost:8200/mcp/openapi.json`
 
-Run just the MCP server with Docker:
+Run just the MCP AIS server with Docker:
 
 ```bash
-docker compose build mcp_server
-docker compose up --no-deps -d mcp_server
+docker compose build mcp_ais
+docker compose up --no-deps -d mcp_ais
 ```
 
 Quick smoke checks:
@@ -162,14 +169,40 @@ curl http://localhost:8200/mcp/ais/health
 curl http://localhost:8200/mcp/openapi.json | jq '.info.title'
 ```
 
+## 🌤️ MCP METOC Server (Open‑Meteo)
+
+`mcp_metoc` now uses the [`FastMCP`](https://gofastmcp.com) framework to expose
+Open‑Meteo tools directly over Streamable HTTP (default port **8201**).
+
+```bash
+docker compose build mcp_metoc
+docker compose up --no-deps -d mcp_metoc
+```
+
+Point MCP Inspector (Streamable HTTP) at `http://localhost:8201/mcp`.
+
+Need plain REST + OpenAPI docs? Run the optional FastAPI app:
+
+```bash
+uvicorn mcp_metoc.api:app --host 0.0.0.0 --port 8301 --reload
+curl 'http://localhost:8301/metoc/atmosphere/forecast?lat=71.29&lon=-156.79&hourly=temperature_2m'
+```
+
 ### 🧪 MCP server tests
 
 There is a small pytest module at `test/test_mcp_server.py` that verifies
-the bridge health, docs, and a few AIS routes.
+the AIS bridge health, docs, and a few routes.
 
 From the project root, with Docker running:
 
 ```bash
 export MCP_BASE_URL=http://localhost:8200   # optional, this is the default
 pytest test/test_mcp_server.py
+```
+
+There are also Streamable HTTP MCP integration tests similar to `mcp_metoc`:
+
+```bash
+export MCP_AIS_URL=http://localhost:8200/mcp   # optional, this is the default
+pytest -m integration test/test_mcp_ais_http.py
 ```

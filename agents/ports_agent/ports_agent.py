@@ -1,6 +1,9 @@
 """
 UN/LOCODE Lookup API (Final Clean Version)
 -----------------------------------------
+
+Author: Patrice G. Cappelaere, IBM Federal
+
 FastAPI service to retrieve UN/LOCODE given a port name (+ optional state, country).
 
 Designed for CSVs with headers like the UNECE dumps:

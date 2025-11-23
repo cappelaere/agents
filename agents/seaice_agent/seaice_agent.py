@@ -4,6 +4,16 @@
 # Includes request-id middleware, governance metadata in responses, and optional
 # watsonx.governance (OpenScale payload logging) integration via environment variables.
 
+"""
+NSIDC Sea Ice Agent (runtime fetch) for NRT CDR-style Arctic daily grids.
+
+Author: Patrice G. Cappelaere, IBM Federal
+
+FastAPI service that fetches near-real-time NSIDC sea-ice concentration grids
+on demand, enriches responses with governance metadata, and optionally logs
+payloads to watsonx.governance (OpenScale) based on environment variables.
+"""
+
 from fastapi import FastAPI, Query, HTTPException, Body, Request
 from typing import Optional, Dict, Any, Tuple, List
 from datetime import datetime

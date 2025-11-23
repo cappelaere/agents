@@ -13,9 +13,9 @@ ENV HOST=0.0.0.0
 ENV PORT=8200
 ENV LOG_LEVEL=info
 
-# Set START_CMD to your library's launcher if different.
-# Example: START_CMD="ais-agent --openapi ${OPENAPI_FILE} --host ${HOST} --port ${PORT}"
-ENV START_CMD="uvicorn app:app --host ${HOST} --port ${PORT} --log-level $LOG_LEVEL --reload"
+# Start the FastMCP-based AIS MCP server by default.
+# The code is copied into /app and treated as a flat module.
+ENV START_CMD="python -m fastmcp_app"
 
 EXPOSE $PORT
 #CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8080", "--log-level", "info"]
