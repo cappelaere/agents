@@ -3,7 +3,7 @@
 build:
 	docker compose build metoc_agent
 	docker compose build seaice_agent
-	docker compose build ais_agent
+	#docker compose build ais_agent
 	docker compose build ports_agent
 	docker compose build map_agent
 	docker compose build mcp_ais
