@@ -925,7 +925,7 @@ async def distance_port(
         fetchedAt=now_iso(),
         version=APP_VERSION,
     )
-    response JSONResponse({"nodes": payload, "meta": meta.model_dump()})
+    response = JSONResponse({"nodes": payload, "meta": meta.model_dump()})
     return response
 
 # ------------- Vessel Routing -----------------
