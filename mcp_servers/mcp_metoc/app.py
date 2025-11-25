@@ -14,22 +14,16 @@ from typing import Optional
 from fastmcp import FastMCP  # type: ignore
 
 from . import metoc_client
-from .langfuse_utils import trace_start, trace_end, trace_flush
+#from .langfuse_utils import trace_start, trace_end, trace_flush
 
 mcp = FastMCP(name="Open METOC Server")
-
 
 @mcp.tool
 async def get_metoc_health() -> dict:
     """Simple health probe."""
-    # No tracing for health probe
-    # trace = trace_start(name="get_metoc_health", input={})
-    response = {"status": "ok", "provider": "open-meteo"}
-    # trace_end(trace, response)
-    # Flush frequently since MCP calls are typically short-lived HTTP requests.
-    trace_flush()
+   
+    response = {"status": "ok", "provider": "open-meteo"}   
     return response
-
 
 @mcp.tool
 async def search_metoc_geocode(name: str, count: int = 5, language: Optional[str] = None) -> dict:
@@ -44,14 +38,11 @@ async def search_metoc_geocode(name: str, count: int = 5, language: Optional[str
     Returns:
         dict: Dictionary containing the original query and Open-Meteo geocoding results.
     """
-    trace = trace_start(name="search_metoc_geocode", input = {"name": name, "count": count, "language": language})
     try:
         results = await metoc_client.geocode_search(name=name, count=count, language=language, fmt="json")
         response = {"query": {"name": name, "count": count, "language": language}, "results": results}
-        trace_end(trace, response)
         return response
     except Exception as e:
-        trace_end(trace, {"error": str(e)})
         raise e
 
 @mcp.tool
@@ -65,18 +56,7 @@ async def get_atmosphere_forecast(
     forecast_days: int = 7,
 ) -> dict:
     """Fetch atmospheric forecasts from Open-Meteo."""
-    trace = trace_start(
-        name="get_atmosphere_forecast",
-        input={
-            "lat": lat,
-            "lon": lon,
-            "hourly": hourly,
-            "daily": daily,
-            "current_weather": current_weather,
-            "timezone": timezone,
-            "forecast_days": forecast_days,
-        },
-    )
+   
     try:
         forecast = await metoc_client.atmosphere_forecast(
             lat=lat,
@@ -88,10 +68,8 @@ async def get_atmosphere_forecast(
             forecast_days=forecast_days,
         )
         response = {"query": {"lat": lat, "lon": lon}, "forecast": forecast}
-        trace_end(trace, response)
         return response
     except Exception as e:
-        trace_end(trace, {"error": str(e)})
         raise e
 
 # ------------------ Archive -----------------------------
@@ -120,26 +98,11 @@ async def get_atmosphere_archive(
         dict: Dictionary with the original query and archive payload from Open-Meteo.
     """
 
-    trace = trace_start(
-        name="get_atmosphere_archive",
-        input={
-            "lat": lat,
-            "lon": lon,
-            "start_date": start_date,
-            "end_date": end_date,
-            "hourly": hourly,
-            "daily": daily,
-            "timezone": timezone,
-        },
-    )
-
     try:
         archive = await metoc_client.atmosphere_archive(lat=lat, lon=lon, start_date=start_date, end_date=end_date, hourly=hourly, daily=daily, timezone=timezone)
         response = {"query": {"lat": lat, "lon": lon, "start_date": start_date, "end_date": end_date}, "archive": archive}
-        trace_end(trace, response)
         return response
     except Exception as e:
-        trace_end(trace, {"error": str(e)})
         raise e
 
 @mcp.tool
@@ -163,14 +126,11 @@ async def get_marine_forecast(
     Returns:
         dict: Dictionary with the original query and marine forecast payload.
     """
-    trace = trace_start(name="get_marine_forecast", input = {"lat": lat, "lon": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days})   
     try:
         marine = await metoc_client.marine_forecast(lat=lat, lon=lon, hourly=hourly, timezone=timezone, forecast_days=forecast_days)
         response = {"query": {"lat": lat, "lon": lon}, "marine": marine}
-        trace_end(trace, response)
         return response
     except Exception as e:
-        trace_end(trace, {"error": str(e)})
         raise e
 
 

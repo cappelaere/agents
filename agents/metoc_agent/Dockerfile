@@ -35,7 +35,7 @@ ENV START_CMD="uvicorn metoc_agent:app --host ${HOST} --port ${PORT} --reload"
 EXPOSE 8080
 
 # Optional healthcheck; disable or adjust path if your agent differs
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-    CMD curl -fsS http://localhost:${PORT}/metoc/health || exit 1
+# HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+#    CMD curl -fsS http://localhost:${PORT}/metoc/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]

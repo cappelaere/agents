@@ -28,7 +28,6 @@ if not secret_key or not public_key:
 
 langfuse = Langfuse(secret_key=secret_key, public_key=public_key, host=base_url)
 
-
 def _current_session_id() -> Optional[str]:
     """
     Return the current HTTP MCP session id, if available.
@@ -61,9 +60,8 @@ def trace_start(name: str, input: Dict[str, Any]):
         input = dict(input)  # shallow copy to avoid mutating caller data
         input["mcp_session_id"] = session_id
 
-    trace = langfuse.start_span(name)
-    trace.update(input=input)
-    logger.info(f"name {name} inputs: {input}")
+    trace = langfuse.start_span(name=name, input=input)
+   
     return trace
 
 

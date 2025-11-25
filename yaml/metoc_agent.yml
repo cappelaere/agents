@@ -1,0 +1,21 @@
+spec_version: v1
+kind: native
+name: metoc_agent
+llm:  watsonx/meta-llama/llama-3-405b-instruct 
+
+style: default     
+hide_reasoning: False
+description: |
+    Generates marine weather forecast or atmospheric weather forecast at a specific location and time. 
+    Optionally provide geocoding support to return latitude/longitude for a named location.
+instructions: |
+    These instructions control the behavior of the agent and provide 
+    context for how to use its tools and agents.
+tools:
+  - mcp_metoc_toolkit:get_marine_forecast
+  - mcp_metoc_toolkit:get_atmosphere_forecast
+  - mcp_metoc_toolkit:search_metoc_geocode
+restrictions: editable
+welcome_content:
+  welcome_message: "Hello, I'm the Metoc Agent!"
+  description: "How can I help you today?"

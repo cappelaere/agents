@@ -4,8 +4,13 @@ From your project root (where your agent code lives):
 
 Python version 3.9.23
 
+I want 3.12
+```
+sudo dnf install -y python3.12 python3.12-devel python3.12-pip
+```
+
 ```bash
-python3 -m venv venv
+python3.12 -m venv venv
 ```
 
 This creates a new isolated environment in a folder named `venv/`.
@@ -19,6 +24,7 @@ You can name it anything (e.g. `.env`, `.venv`, `agent_env`), but `venv` is stan
 
 ```bash
 source venv/bin/activate
+pip install --upgrade pip
 ```
 
 Once activated, your shell prompt will change — e.g.

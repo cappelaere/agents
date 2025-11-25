@@ -42,6 +42,7 @@ def _current_session_id() -> Optional[str]:
         return None
     if request is None:
         return None
+    print(request.headers)
     return request.headers.get("mcp-session-id")
 
 
@@ -54,15 +55,16 @@ def trace_start(name: str, input: Dict[str, Any]):
     - If running over HTTP Streamable transport, adds ``mcp_session_id``
       from the current request headers.
     """
+    print(f"trace_start name: {name}, input: {input}")
     # Attach MCP session id to the trace input if we're running over HTTP.
     session_id = _current_session_id()
     if session_id:
         input = dict(input)  # shallow copy to avoid mutating caller data
         input["mcp_session_id"] = session_id
+        print(f"Added mcp_session_id to trace input: {session_id}")
 
-    trace = langfuse.start_span(name)
-    trace.update(input=input)
-    logger.info(f"name {name} inputs: {input}")
+    trace = langfuse.start_span(name=name,input=input)
+   
     return trace
 
 def trace_end(trace, resp: Any):

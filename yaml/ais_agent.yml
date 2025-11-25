@@ -1,0 +1,25 @@
+spec_version: v1
+kind: native
+name: ais_agent
+llm:  watsonx/meta-llama/llama-3-405b-instruct 
+
+style: default     
+hide_reasoning: False
+description: |
+    Retrieves ship information, tracks and photos.  It also retrieves ports information. 
+    This agent also allow the definition of Areas of Interest (AOI) to monitor vessel traffic in those areas.
+    You can list them, get their health status, and find vessels within or near these AOIs.
+instructions: |
+    These instructions control the behavior of the agent and provide 
+    context for how to use its tools and agents.
+tools:
+  - "mcp_ais_toolkit:get_vessel_info"
+  - "mcp_ais_toolkit:ais_vessels_nearby"
+  - "mcp_ais_toolkit:ais_vessels_in_aoi"
+  - "mcp_ais_toolkit:get_ais_aoi"
+  - "mcp_ais_toolkit:list_ais_aois"
+  - "mcp_ais_toolkit:get_ais_health"
+restrictions: editable
+welcome_content:
+  welcome_message: "Hello, I'm the AIS Agent!"
+  description: "How can I help you today?"

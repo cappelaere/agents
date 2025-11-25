@@ -16,8 +16,6 @@ from typing import Optional
 from fastmcp import FastMCP  # type: ignore
 
 import ais_agent as core
-from langfuse_utils import trace_start, trace_end, trace_flush
-
 
 mcp = FastMCP(name="AIS MCP Server")
 
@@ -30,16 +28,14 @@ async def get_ais_health() -> dict:
     Returns:
         dict: Basic health status and upstream base URL.
     """
-    # No Tracing for health
-    # trace = trace_start(name="get_ais_health", input={})
+    
     response = {
         "status": "ok",
         "provider": "ais",
         "upstream_base": core.UPSTREAM_BASE,
         "version": core.APP_VERSION,
     }
-    # trace_end(trace, response)
-    trace_flush()
+
     return response
 
 
@@ -51,7 +47,7 @@ async def list_ais_aois() -> dict:
     Returns:
         dict: AOI items and governance metadata.
     """
-    trace = trace_start(name="list_ais_aois", input={})
+   
     items = core.AOI.list()
     response = {
         "items": items,
@@ -63,7 +59,6 @@ async def list_ais_aois() -> dict:
             "version": core.APP_VERSION,
         },
     }
-    trace_end(trace, response)
     return response
 
 
@@ -78,7 +73,6 @@ async def get_ais_aoi(aoi_id: str) -> dict:
     Returns:
         dict: AOI feature and governance metadata.
     """
-    trace = trace_start(name="get_ais_aoi", input={"aoi_id": aoi_id})
     feat = core.AOI.get(aoi_id)
     bbox = feat.properties.get("bbox")
     aoi_hash = core.sha256_hex(
@@ -97,7 +91,6 @@ async def get_ais_aoi(aoi_id: str) -> dict:
             "version": core.APP_VERSION,
         },
     }
-    trace_end(trace, response)
     return response
 
 
@@ -122,16 +115,6 @@ async def ais_vessels_in_aoi(
     Returns:
         dict: Vessel list payload and governance metadata.
     """
-    trace = trace_start(
-        name="ais_vessels_in_aoi",
-        input={
-            "aoi_id": aoi_id,
-            "bbox": bbox,
-            "timespan": timespan,
-            "shiptype": shiptype,
-            "msgtype": msgtype,
-        },
-    )
 
     apikey = core.AIS_EXPORTVESSELS_KEY
     if msgtype not in core.AOI_MSGTYPES:
@@ -152,7 +135,10 @@ async def ais_vessels_in_aoi(
     else:
         raise core.HTTPException(status_code=400, detail="Provide either aoi_id or bbox")
 
-    shiptype_code = core.normalize_shiptype(shiptype)
+    try:
+        shiptype_code = core.normalize_shiptype(shiptype)
+    except e:
+        shiptype_code = None
     params = {
         "minlat": minLat,
         "minlon": minLon,
@@ -193,7 +179,6 @@ async def ais_vessels_in_aoi(
         )
 
     response = {"nodes": payload, "meta": meta_dict}
-    trace_end(trace, response)
     return response
 
 
@@ -222,19 +207,6 @@ async def ais_vessels_nearby(
     Returns:
         dict: Vessel list payload and governance metadata.
     """
-    trace = trace_start(
-        name="ais_vessels_nearby",
-        input={
-            "lat": lat,
-            "lon": lon,
-            "radius_nm": radius_nm,
-            "aoi_id": aoi_id,
-            "timespan": timespan,
-            "shiptype": shiptype,
-            "msgtype": msgtype,
-        },
-    )
-
     apikey = core.AIS_EXPORTVESSELS_KEY
     if msgtype not in core.AOI_MSGTYPES:
         raise core.HTTPException(
@@ -308,7 +280,6 @@ async def ais_vessels_nearby(
         )
 
     response = {"nodes": nodes, "meta": meta_dict}
-    trace_end(trace, response)
     return response
 
 
@@ -329,10 +300,6 @@ async def get_vessel_info(
     Returns:
         dict: Vessel info nodes and governance metadata.
     """
-    trace = trace_start(
-        name="get_vessel_info",
-        input={"mmsi": mmsi, "imo": imo, "shipname": shipname},
-    )
 
     payload = None
     if imo:
@@ -356,7 +323,6 @@ async def get_vessel_info(
     )
     nodes = payload["data"]["vessels"]["nodes"]
     response = {"nodes": nodes, "meta": meta.model_dump()}
-    trace_end(trace, response)
     return response
 
 

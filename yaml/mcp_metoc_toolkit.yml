@@ -1,0 +1,9 @@
+spec_version: v1
+kind: mcp
+name:mcp_metoc_toolkit
+transport: streamable_http # streamable_http|sse
+server_url: http://150.240.3.116:8201/mcp
+tools:
+  - *
+connections:
+  - mcp_metoc

@@ -4,7 +4,7 @@
 # Intentionally avoids `set -euo pipefail` so that a minor error
 # (e.g. missing venv or .env) does not kill the VS Code terminal.
 
-cd /Users/patrice/Development/agents || return
+#cd /Users/patrice/Development/agents || return
 
 # Activate venv only if not already active
 if [ -z "${VIRTUAL_ENV:-}" ] && [ -f "venv/bin/activate" ]; then

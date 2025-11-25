@@ -23,8 +23,6 @@ import uuid, socket, time, logging
 from datetime import datetime
 import httpx
 
-from langfuse_utils import trace_start, trace_end, trace_flush
-
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
 app = FastAPI(title="Arctic METOC Agent API (PoX, Open‑Meteo + Geocoder)", version="0.4.2")
@@ -86,7 +84,6 @@ async def health(request: Request):
     }
     resp["governance"] = _gov("/metoc/health", request, {}, {})
 
-    trace_flush()
     return resp
 
 # ---------------- Search --------------------------
@@ -102,8 +99,6 @@ async def geocode_search(
 ):
     """Proxy to Open-Meteo geocoding API."""
 
-    trace = trace_start(request)
-
     url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {"name": name, "count": count, "language": language, "format": format}
     async with httpx.AsyncClient(timeout=15.0) as client:
@@ -114,8 +109,6 @@ async def geocode_search(
         "results": data,
     }
     resp["governance"] = _gov("/metoc/geocode/search", request, {"name": name, "count": count, "language": language, "format": format}, {"provider_url": url})
-
-    trace_end(trace, resp)
     return resp
 
 # ----------------- Forecast ------------------------------
@@ -134,8 +127,6 @@ async def atmosphere_forecast(
 ):
     """Fetch atmospheric forecast from Open-Meteo."""
 
-    trace = trace_start(request)
-
     url = "https://api.open-meteo.com/v1/forecast"
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -146,8 +137,6 @@ async def atmosphere_forecast(
         "forecast": data,
     }
     resp["governance"] = _gov("/metoc/atmosphere/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
-
-    trace_end(trace, resp)
 
     return resp
 
@@ -166,8 +155,6 @@ async def atmosphere_archive(
 ):
     """Fetch archived atmospheric data from Open-Meteo."""
 
-    trace = trace_start(request)
-
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {"latitude": lat, "longitude": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -179,8 +166,6 @@ async def atmosphere_archive(
     }
     resp["governance"] = _gov("/metoc/atmosphere/archive", request, {"lat": lat, "lon": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}, {"provider_url": url})
    
-    trace_end(trace, resp)
-
     return resp
 
 # ---------------- Forecast -----------------------
@@ -196,8 +181,6 @@ async def marine_forecast(
 ):
     """Fetch marine forecast variables (waves, currents, etc.) from Open-Meteo."""
 
-    trace = trace_start(request)
-
     url = "https://marine-api.open-meteo.com/v1/marine"
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}
     async with httpx.AsyncClient(timeout=20.0) as client:
@@ -209,6 +192,4 @@ async def marine_forecast(
     }
     resp["governance"] = _gov("/metoc/marine/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
     
-    trace_end(trace, resp)
-
     return resp

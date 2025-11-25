@@ -164,7 +164,7 @@ def normalize_shiptype(shiptype: Optional[str]) -> Optional[int]:
             raise HTTPException(status_code=400, detail=f"Invalid shiptype code. Allowed: {sorted(SHIPTYPE_CODE_SET)}")
         return code
     if s not in SHIPTYPE_NAME_TO_CODE:
-        raise HTTPException(status_code=400, detail=f"Invalid shiptype name. Allowed: {sorted(SHIPTYPE_NAME_TO_CODE.keys())}")
+        raise HTTPException(status_code=400, detail=f"Invalid shiptype name: {s}. Allowed: {sorted(SHIPTYPE_NAME_TO_CODE.keys())}")
     return SHIPTYPE_NAME_TO_CODE[s]
 
 def make_identifier_params(ship_id: Optional[str], mmsi: Optional[str], imo: Optional[str]) -> Dict[str, Any]:
@@ -271,7 +271,6 @@ AOI = AoiRegistry(AOI_PATH)
 # ----- Health -----
 async def health(request: Request):
     ok, detail = True, "ok"
-    logger.info(f"health v:{APP_VERSION} b:{UPSTREAM_BASE} n:{APP_NAME}")
     meta = GovernanceMeta(
         source=APP_NAME,
         endpoint=fq(request),
