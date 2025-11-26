@@ -43,7 +43,10 @@ curl -s "$BASE/vessel/info?mmsi=257017000" | jq .
 curl -s "$BASE/vessel/info?imo=273214780" | jq .
 curl -s "$BASE/vessel/info?shipname=BOSS" | jq .
 
+'mmsi': '368378980'
+'imo': 8662593
 
+GET /ais/vessel/track?end=2025-11-25T00%3A00%3A00Z&limit=100&mmsi=368378980&start=2025-11-24T00%3A00%3A00Z HTTP/1.1" 400 Bad Request
 
 # Vessel track — by IMO within a time window
 curl -s "$BASE/vessel/track?imo=9538907&fromdt=2025-09-01%2000:00&todt=2025-09-02%2000:00" | jq .

@@ -77,6 +77,20 @@ AOI_MSGTYPES = {"simple", "extended", "full"}
 
 SENSITIVE_KEYS_DEFAULT = {"apikey", "api_key", "token", "auth", "authorization"}
 
+KNOWN_DATE_FORMATS = [
+    "%Y-%m-%dT%H:%M:%SZ",
+    "%Y-%m-%d %H:%M:%S",
+    "%Y-%m-%d",
+]
+def normalize_date(s:str) -> str:
+    for fmt in KNOWN_DATE_FORMATS:
+        try:
+            dt = datetime.strptime(s, fmt)
+            return dt.strftime("%Y-%m-%d")
+        except Exception:
+            continue
+    raise HTTPException(status_code=400, detail=f"Invalid date format: {s}")
+
 # Initialize LangFuse
 from langfuse import Langfuse
 langfuse = Langfuse(
@@ -197,6 +211,7 @@ async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | st
     async with httpx.AsyncClient(timeout=60.0) as client:
         r = await client.get(url, params=params)
         if r.status_code >= 400:
+            logger.error(f"Upstream error {r.status_code}: {r.text}")
             raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
         ctype = r.headers.get("content-type", "")
         return r.json() if "application/json" in ctype else r.text
@@ -709,7 +724,7 @@ async def vessel_info(
         payload = fetch_vessel_info_by_mmsi(mmsi, after_cursor=None)
     if shipname:
         payload = fetch_vessel_info_by_name(shipname, after_cursor=None)
-
+    logger.info(f'vessel_info payload: {payload}')
     meta = GovernanceMeta(
         source=APP_NAME,
         endpoint=fq(request),
@@ -742,6 +757,7 @@ async def vessel_photo(
 
     id_params['protocol'] = 'jsono'
     payload = await upstream_get(f"/exportvesselphoto/{apikey}", id_params)
+    logger.info(f'vessel_photo payload: {payload}')
     meta = GovernanceMeta(
         source=APP_NAME,
         endpoint=fq(request),
@@ -761,8 +777,8 @@ async def vessel_track(
     ship_id: Optional[str] = Query(None, description="Provider vessel id"),
     mmsi: Optional[str]    = Query(None, description="Maritime Mobile Service Identity"),
     imo: Optional[str]     = Query(None, description="IMO number"),
-    fromdate: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
-    todate: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
+    start: Optional[str]  = Query(None, description="UTC start, e.g., 2025-09-01 00:00"),
+    end: Optional[str]    = Query(None, description="UTC end, e.g., 2025-09-02 00:00"),
     days: Optional[int]= Query(None, description="The number of days, starting from the time of request and going backwards")
 ):
     """Return recent track positions for a single vessel."""
@@ -773,8 +789,8 @@ async def vessel_track(
     params['v'] = 3
     params['msgtype'] = 'simple'
 
-    if fromdate:   params["fromdate"] = fromdate
-    if todate:     params["todate"]   = todate
+    if start:   params["fromdate"] = normalize_date(start)
+    if end:     params["todate"]   = normalize_date(end)
     if days: params["days"] = days
 
     payload = await upstream_get(f"/exportvesseltrack/{apikey}", params)
@@ -882,8 +898,8 @@ async def portcalls(
         'msgtype': 'simple'
     }
   
-    if fromdate:   params["fromdate"] = fromdate
-    if todate:     params["todate"]   = todate
+    if fromdate:   params["fromdate"] = normalize_date(fromdate)
+    if todate:     params["todate"]   = normalize_date(todate)
     if timespan: params["timespan"] = timespan
 
     payload = await upstream_get(f"/portcalls/{apikey}", params)

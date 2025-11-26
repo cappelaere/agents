@@ -92,7 +92,7 @@ async def health(request: Request):
 async def geocode_search(
     request: Request,
     name: str,
-    count: int = 10,
+    count: int = 1,
     format: str = "json",
     language: Optional[str] = None,
     session_id: Optional[str] = Query(default=None),
@@ -108,6 +108,7 @@ async def geocode_search(
         "endpoint": str(request.url),
         "results": data,
     }
+    logger.info(f"Geocode search for name='{name}' returned {len(data.get('results', []))} results")
     resp["governance"] = _gov("/metoc/geocode/search", request, {"name": name, "count": count, "language": language, "format": format}, {"provider_url": url})
     return resp
 
@@ -137,7 +138,7 @@ async def atmosphere_forecast(
         "forecast": data,
     }
     resp["governance"] = _gov("/metoc/atmosphere/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
-
+    logger.info(f"Atmosphere forecast for lat={lat} lon={lon} returned keys: {list(data.keys())}")
     return resp
 
 # ------------------ Archive -----------------------------
@@ -182,6 +183,8 @@ async def marine_forecast(
     """Fetch marine forecast variables (waves, currents, etc.) from Open-Meteo."""
 
     url = "https://marine-api.open-meteo.com/v1/marine"
+    hourly="wave_height,wind_speed_10m,wind_direction_10m,sea_surface_temperature"
+
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}
     async with httpx.AsyncClient(timeout=20.0) as client:
         r = await client.get(url, params=params)
@@ -190,6 +193,7 @@ async def marine_forecast(
         "endpoint": str(request.url),
         "marine": data,
     }
+
     resp["governance"] = _gov("/metoc/marine/forecast", request, {"lat": lat, "lon": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}, {"provider_url": url})
-    
+    logger.info(f"Marine forecast for lat={lat} lon={lon} returned keys: {list(data.keys())}")  
     return resp
