@@ -333,7 +333,7 @@ async def _wxg_log_payload(governance: Dict[str, Any], output: Dict[str, Any]) -
 # -----------------------------
 # Endpoints
 # -----------------------------
-@tool()
+
 @app.get("/seaice/health")
 async def healthz(request: Request):
     resp = {
@@ -355,7 +355,7 @@ async def healthz(request: Request):
     return resp
 
 # -------------- WMS --------------------
-@tool()
+
 @app.get("/seaice/wms")
 async def wms_template(
     layer: Optional[str] = None,
@@ -398,7 +398,7 @@ async def wms_template(
     return resp
 
 # ------- Download product -----------------
-@tool()
+
 @app.get("/seaice/download")
 async def download(
     time: str = Query(..., pattern=r"^\d{4}-\d{2}-\d{2}$"),
@@ -460,7 +460,7 @@ async def download(
     return resp
 
 # ---------- Point -----------------
-@tool()
+
 @app.get("/seaice/point")
 async def point_sample(
     lat: float = Query(..., ge=-90, le=90),
@@ -517,7 +517,7 @@ async def point_sample(
     return resp
 
 # ------------------- Stats -----------------------
-@tool()
+
 @app.post("/seaice/stats")
 async def bbox_stats(payload: Dict[str, Any] = Body(...), request: Request = None):
     """

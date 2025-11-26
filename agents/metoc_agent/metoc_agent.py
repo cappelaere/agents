@@ -74,7 +74,7 @@ def _gov(endpoint: str, req: Request, inputs: Dict[str, Any], lineage: Dict[str,
     }
 
 # --------------- Health --------------------
-@tool()
+
 @app.get("/metoc/health", tags=["Health"])
 async def health(request: Request):
     """Health probe for the METOC agent."""
@@ -87,7 +87,7 @@ async def health(request: Request):
     return resp
 
 # ---------------- Search --------------------------
-@tool()
+
 @app.get("/metoc/geocode/search", tags=["Geocoder"])
 async def geocode_search(
     request: Request,
@@ -113,7 +113,7 @@ async def geocode_search(
     return resp
 
 # ----------------- Forecast ------------------------------
-@tool()
+
 @app.get("/metoc/atmosphere/forecast", tags=["Atmosphere"])
 async def atmosphere_forecast(
     request: Request,
@@ -142,7 +142,7 @@ async def atmosphere_forecast(
     return resp
 
 # ------------------ Archive -----------------------------
-@tool()
+
 @app.get("/metoc/atmosphere/archive", tags=["Atmosphere"])
 async def atmosphere_archive(
     request: Request,
@@ -170,7 +170,7 @@ async def atmosphere_archive(
     return resp
 
 # ---------------- Forecast -----------------------
-@tool()
+
 @app.get("/metoc/marine/forecast", tags=["Marine"])
 async def marine_forecast(
     request: Request,

@@ -408,7 +408,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     logger.info("Startup OK: rows=%d, columns=%s", len(df), list(df.columns))
 
 # ------------------- Health ------------------
-@tool()
+
 @app.get("/ports/health", tags=["meta"]) 
 def health():
     df = load_dataframe()
@@ -423,7 +423,7 @@ def health():
     }
 
 # --------------- Columns ----------------------
-@tool()
+
 @app.get("/ports/columns", tags=["debug"]) 
 def columns():
     trace = trace_start(request)
@@ -434,7 +434,7 @@ def columns():
 
     return response
 # --------------- Peek ------------------
-@tool()
+
 @app.get("/ports/peek", tags=["debug"]) 
 def peek(n: int = 5):
     trace = trace_start(request)
@@ -447,7 +447,7 @@ def peek(n: int = 5):
     return response
 
 # ---------------- Reload ---------------
-@tool()
+
 @app.post("/ports/reload", tags=["debug"]) 
 def reload_data():
     trace = trace_start(request)
@@ -464,7 +464,7 @@ def reload_data():
         raise HTTPException(status_code=500, detail=_error_payload("ServerError", str(e)))
 
 # ----------------- Search -----------------
-@tool()
+
 @app.get("/ports/search", response_model=List[MatchResult], tags=["lookup"]) 
 def search(
     name: str = Query(..., description="Port name"),

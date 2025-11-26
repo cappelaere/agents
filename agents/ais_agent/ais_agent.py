@@ -31,6 +31,7 @@ from fastapi import FastAPI, Query, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
+from map import ship_track_geojson, ships_geojson, post_geojson
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_JSON  = os.getenv("LOG_JSON", "1") in {"1", "true", "True"}
@@ -454,6 +455,11 @@ class AoiRegistry:
                 continue
             self._features[fid] = AoiFeature(type=feat["type"], properties=props, geometry=feat.get("geometry") or {})
 
+    def geojson(self) -> Dict[str, Any]:
+        """Return the raw AOI GeoJSON content as a dictionary."""
+
+        return self._raw_geojson    
+    
     def list(self) -> List[Dict[str, Any]]:
         """Return a lightweight list of AOI descriptors.
 
@@ -479,7 +485,11 @@ class AoiRegistry:
 
         if fid not in self._features:
             raise HTTPException(status_code=404, detail=f"AOI '{fid}' not found")
-        return self._features[fid]
+        
+        payload = self._features[fid] 
+        logger.info(f"get AOI {fid} {payload}")
+        post_geojson(payload)
+        return payload
 
     def bbox_for(self, fid: str) -> Tuple[float, float, float, float]:
         """Return a validated bbox for a bbox-type AOI.
@@ -506,7 +516,7 @@ app = FastAPI(
 )
 
 # Health
-@tool()
+
 @app.get("/ais/health", tags=["Health"])
 async def health(request: Request):
     """Health probe for the AIS gateway.
@@ -530,10 +540,12 @@ async def health(request: Request):
     })
 
 # ----- AOI endpoints -----
-@tool()
+
 @app.get("/ais/aoi", tags=["AOI"])
 async def list_aois(request: Request):
     """List all configured Areas of Interest (AOIs)."""
+
+    post_geojson(AOI.geojson())
 
     response = JSONResponse({
         "items": AOI.list(),
@@ -549,7 +561,7 @@ async def list_aois(request: Request):
     return response
 
 # ----- AOI -----
-@tool()
+
 @app.get("/ais/aoi/{aoi_id}", tags=["AOI"])
 async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request: Request = None):
     """Return the full AOI feature and governance metadata for a single AOI."""
@@ -573,7 +585,7 @@ async def get_aoi(aoi_id: str = Path(..., description="AOI identifier"), request
     return response
 
 # ----- Vessels in AOI -----
-@tool()
+
 @app.get("/ais/vessels/aoi", tags=["Vessels"])
 async def vessels_in_aoi(
     request: Request,
@@ -628,11 +640,14 @@ async def vessels_in_aoi(
             "registryHash": AOI._registry_hash,
             "aoiSource": AOI_PATH,
         })
+    
+    ships_geojson(payload)
+
     response = JSONResponse({"nodes": payload, "meta": meta_dict})
     return response
 
 # ----- Vessels nearby -----
-@tool()
+
 @app.get("/ais/vessels/nearby", tags=["Vessels"])
 async def vessels_nearby(
     request: Request,
@@ -694,6 +709,7 @@ async def vessels_nearby(
         "fetchedAt": now_iso(),
         "version": APP_VERSION,
     }
+
     if aoi_id:
         aoi_feat = AOI.get(aoi_id)
         aoi_hash = sha256_hex(canonical_json({"properties": aoi_feat.properties, "geometry": aoi_feat.geometry}))
@@ -705,11 +721,13 @@ async def vessels_nearby(
             "registryHash": AOI._registry_hash,
             "aoiSource": AOI_PATH,
         })
+    
+    ships_geojson(nodes)
     response =  JSONResponse({"nodes": nodes, "meta": meta_dict})
     return response
 
 # ----- Vessel info -----
-@tool()
+
 @app.get("/ais/vessel/info", tags=["Vessels"])
 async def vessel_info(
     request: Request,
@@ -736,7 +754,7 @@ async def vessel_info(
     return response
 
 # ----- Vessel info -----
-@tool()
+
 @app.get("/ais/vessel/photo", tags=["Vessels"])
 async def vessel_photo(
     request: Request,
@@ -770,7 +788,7 @@ async def vessel_photo(
     return response
 
 # ----- Vessel track -----
-@tool()
+
 @app.get("/ais/vessel/track", tags=["Tracks"])
 async def vessel_track(
     request: Request,
@@ -794,6 +812,9 @@ async def vessel_track(
     if days: params["days"] = days
 
     payload = await upstream_get(f"/exportvesseltrack/{apikey}", params)
+
+    ship_track_geojson(payload)
+
     meta = GovernanceMeta(
         source=APP_NAME,
         endpoint=fq(request),
@@ -807,7 +828,7 @@ async def vessel_track(
     return response
 
 # ----- Vessel Events -----
-@tool()
+
 @app.get("/ais/vessel/events", tags=["Events"])
 async def vessel_events(
     request: Request,
@@ -843,7 +864,7 @@ async def vessel_events(
 
 
 # ----- Single Vessel Portcalls -----
-@tool()
+
 @app.get("/ais/vessel/portcalls", tags=["PortCalls"])
 async def vessel_portcalls(
     request: Request,
@@ -879,7 +900,7 @@ async def vessel_portcalls(
     return response
 
 # ----- Portcalls -----
-@tool()
+
 @app.get("/ais/portcalls", tags=["PortCalls"])
 async def portcalls(
     request: Request,
@@ -915,7 +936,7 @@ async def portcalls(
     return response
 
 # ----- Routing -----
-@tool()
+
 @app.get("/ais/routing/distance_to_port", tags=["Routing"])
 async def distance_port(
     request: Request,
@@ -945,7 +966,7 @@ async def distance_port(
     return response
 
 # ------------- Vessel Routing -----------------
-@tool()
+
 @app.get("/ais/routing/vessel_route_to_port", tags=["Routing"])
 async def distance_port(
     request: Request,
