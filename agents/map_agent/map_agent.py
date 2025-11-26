@@ -8,7 +8,7 @@ ingest endpoint and WebSocket channel so other agents can push GeoJSON
 overlays to connected browsers in real time.
 """
 
-from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response, Body
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect, Response, Body, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,9 +18,9 @@ import asyncio
 import time
 import os
 
-from langfuse_utils import trace_start, trace_end, trace_flush
-
 from ibm_watsonx_orchestrate.agent_builder.tools import tool
+
+from jsonschema import validate, ValidationError
 
 app = FastAPI(title="Arctic Map Agent (Leaflet)")
 templates = Jinja2Templates(directory="templates")
@@ -75,12 +75,131 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+
+# --- GeoJSON validation & LLM patching helpers ---
+
+GEOJSON_SCHEMA: Dict[str, Any] = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Basic GeoJSON FeatureCollection",
+    "type": "object",
+    "required": ["type"],
+    "properties": {
+        "type": {
+            "type": "string",
+            "enum": ["FeatureCollection", "Feature", "Point", "LineString", "Polygon"],
+        },
+        "features": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "required": ["type", "geometry"],
+                "properties": {
+                    "type": {"type": "string", "const": "Feature"},
+                    "properties": {"type": ["object", "null"]},
+                    "geometry": {
+                        "type": ["object", "null"],
+                        "required": ["type", "coordinates"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["Point", "LineString", "Polygon"],
+                            },
+                            "coordinates": {},
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+
+
+def _patch_geojson_from_llm(payload: Any) -> Dict[str, Any]:
+    """Attempt to coerce an LLM-produced structure into valid GeoJSON.
+
+    This applies a series of safe, conservative fixes:
+    - Unwraps common extra nesting keys such as ``{\"geojson\": {...}}``.
+    - Normalizes ``type`` casing (e.g., ``featurecollection`` → ``FeatureCollection``).
+    - Wraps bare Feature/Geometry objects into a ``FeatureCollection``.
+    - Drops obviously invalid features.
+
+    Args:
+        payload: Raw JSON-like structure from the client/LLM.
+
+    Returns:
+        dict: A patched GeoJSON object suitable for schema validation.
+
+    Raises:
+        ValueError: If the payload cannot reasonably be interpreted as GeoJSON.
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("Payload must be a JSON object.")
+
+    # Unwrap common LLM wrappers like {"geojson": {...}} or {"data": {...}}
+    for key in ("geojson", "GeoJSON", "data"):
+        inner = payload.get(key)
+        if isinstance(inner, dict) and "type" in inner:
+            payload = inner
+            break
+
+    # Normalize top-level type casing
+    if "type" in payload and isinstance(payload["type"], str):
+        t = payload["type"].strip()
+        lowered = t.lower()
+        if lowered == "featurecollection":
+            payload["type"] = "FeatureCollection"
+        elif lowered == "feature":
+            payload["type"] = "Feature"
+
+    # If this is a single Feature, wrap it in a FeatureCollection
+    if payload.get("type") == "Feature":
+        payload = {
+            "type": "FeatureCollection",
+            "features": [payload],
+        }
+
+    # If this looks like a bare geometry, wrap it as a FeatureCollection[Feature]
+    if payload.get("type") in ("Point", "LineString", "Polygon"):
+        payload = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": payload,
+                    "properties": {},
+                }
+            ],
+        }
+
+    # Ensure features is a list when we claim to be a FeatureCollection
+    if payload.get("type") == "FeatureCollection":
+        features = payload.get("features")
+        if features is None:
+            payload["features"] = []
+        elif not isinstance(features, list):
+            payload["features"] = [features] if isinstance(features, dict) else []
+
+        cleaned_features = []
+        for feat in payload["features"]:
+            if not isinstance(feat, dict):
+                continue
+            if feat.get("type") != "Feature":
+                feat["type"] = "Feature"
+            geom = feat.get("geometry")
+            if geom is None or not isinstance(geom, dict):
+                continue
+            if "type" not in geom or "coordinates" not in geom:
+                continue
+            cleaned_features.append(feat)
+        payload["features"] = cleaned_features
+
+    return payload
+
 # --- Health endpoints ---
 @tool()
 @app.get("/health")
 async def health():
     """Basic liveness probe for the map agent."""
-    trace_flush()
     return {"status": "ok"}
 
 # ---------- Home Page ---------------
@@ -123,22 +242,49 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
     """Broadcast a GeoJSON payload to all connected map clients.
 
     Expected: a GeoJSON FeatureCollection, Feature, or Geometry object.
+
+    Since this endpoint is typically fed by an LLM, we apply both:
+    - a patching pass to coerce common LLM mistakes into valid GeoJSON, and
+    - a JSON Schema validation step to reject irreparably invalid inputs.
+
+    We also log a compact summary of what we received and what we broadcast to
+    make debugging LLM behavior and map overlays easier.
     """
-    trace = trace_start(request)
-
-    if not isinstance(payload, dict) or "type" not in payload:
-        response = Response(
-            content=json.dumps({"error": "Invalid GeoJSON: missing 'type'"}),
-            media_type="application/json",
-            status_code=400
+    # Log high-level shape of the incoming payload without dumping entire blobs.
+    if isinstance(payload, dict):
+        logger.info(
+            "Received /ingest payload: type=%s keys=%s",
+            payload.get("type"),
+            list(payload.keys())[:10],
         )
-        trace_end(trace, response)
-        return response
+    else:
+        logger.info(
+            "Received /ingest non-object payload of type %s",
+            type(payload),
+        )
 
-    await manager.broadcast_text(json.dumps(payload))
-    count = len(payload.get("features", [])) if isinstance(payload.get("features"), list) else None
+    try:
+        patched = _patch_geojson_from_llm(payload)
+        validate(instance=patched, schema=GEOJSON_SCHEMA)
+    except (ValueError, ValidationError) as exc:
+        logger.warning("Invalid GeoJSON on /ingest: %s", exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid GeoJSON: {exc}",
+        )
+
+    await manager.broadcast_text(json.dumps(patched))
+    count = (
+        len(patched.get("features", []))
+        if isinstance(patched.get("features"), list)
+        else None
+    )
+    logger.info(
+        "Broadcasting patched GeoJSON on /ingest: type=%s features=%s",
+        patched.get("type"),
+        count,
+    )
     response = {"status": "ok", "features": count}
-    trace_end(trace, response)
     return response
 
 
