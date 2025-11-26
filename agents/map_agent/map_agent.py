@@ -196,14 +196,12 @@ def _patch_geojson_from_llm(payload: Any) -> Dict[str, Any]:
     return payload
 
 # --- Health endpoints ---
-@tool()
 @app.get("/health")
 async def health():
     """Basic liveness probe for the map agent."""
     return {"status": "ok"}
 
 # ---------- Home Page ---------------
-@tool()
 @app.get("/", response_class=HTMLResponse)
 async def arctic_map(request: Request):
     """Render the main Leaflet map page centered on the Arctic."""
@@ -236,9 +234,8 @@ async def websocket_endpoint(websocket: WebSocket):
         await manager.disconnect(websocket)
 
 # -------------- Ingest ----------------------
-@tool()
 @app.post("/ingest")
-async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
+async def ingest_geojson(request: Request):
     """Broadcast a GeoJSON payload to all connected map clients.
 
     Expected: a GeoJSON FeatureCollection, Feature, or Geometry object.
@@ -250,18 +247,61 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
     We also log a compact summary of what we received and what we broadcast to
     make debugging LLM behavior and map overlays easier.
     """
-    # Log high-level shape of the incoming payload without dumping entire blobs.
+
+    # 1) Inspect the raw body
+    raw = await request.body()
+    logger.info("Raw /ingest body (first 500 bytes): %r", raw[:500])
+    if not raw:
+        raise HTTPException(
+            status_code=400,
+            detail="Empty request body on /ingest",
+        )
+
+    # 2) Try to parse as JSON
+    try:
+        payload = json.loads(raw)
+    except Exception as exc:
+        logger.warning("Invalid JSON on /ingest: %s", exc)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid JSON: {exc}",
+        )
+    
+    # 3) (optional) log high-level structure
     if isinstance(payload, dict):
         logger.info(
-            "Received /ingest payload: type=%s keys=%s",
+            "Parsed /ingest JSON: type=%s keys=%s",
             payload.get("type"),
             list(payload.keys())[:10],
         )
     else:
         logger.info(
-            "Received /ingest non-object payload of type %s",
-            type(payload),
+            "Parsed /ingest JSON of type %s", type(payload)
         )
+
+    # 1) Manually parse JSON so FastAPI doesn’t 422 before we run
+    # try:
+    #     logger.info("Received /ingest request from %s", request.client.host if request.client else "unknown")
+    #     payload = await request.json()
+    # except Exception as exc:
+    #     logger.warning("Invalid JSON on /ingest: %s", exc)
+    #     raise HTTPException(
+    #         status_code=400,
+    #         detail=f"Invalid JSON: {exc}",
+    #     )
+    
+    # # Log high-level shape of the incoming payload without dumping entire blobs.
+    # if isinstance(payload, dict):
+    #     logger.info(
+    #         "Received /ingest payload: type=%s keys=%s",
+    #         payload.get("type"),
+    #         list(payload.keys())[:10],
+    #     )
+    # else:
+    #     logger.info(
+    #         "Received /ingest non-object payload of type %s",
+    #         type(payload),
+    #    )
 
     try:
         patched = _patch_geojson_from_llm(payload)
@@ -289,7 +329,6 @@ async def ingest_geojson(payload: Dict[str, Any] = Body(...)):
 
 
 # --- Version endpoint ---
-@tool()
 @app.get("/version")
 async def version():
     """Return basic version/build information for the map agent."""
