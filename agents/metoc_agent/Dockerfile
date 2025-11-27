@@ -18,7 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy runtime assets
 COPY metoc_openapi.yaml ./metoc_openapi.yaml
 COPY metoc_agent.py ./metoc_agent.py
-COPY langfuse_utils.py ./langfuse_utils.py
 
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh

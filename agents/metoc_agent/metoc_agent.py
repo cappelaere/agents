@@ -23,8 +23,6 @@ import uuid, socket, time, logging
 from datetime import datetime
 import httpx
 
-from ibm_watsonx_orchestrate.agent_builder.tools import tool
-
 app = FastAPI(title="Arctic METOC Agent API (PoX, Open‑Meteo + Geocoder)", version="0.4.2")
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -34,10 +32,78 @@ logger = logging.getLogger("metoc_openmeteo_agent")
 APP_NAME = "metoc_agent"
 APP_VERSION = "0.2.2"
 
+
 def _now_iso() -> str:
     """Return the current UTC time in ISO-8601 format with millisecond precision."""
 
     return datetime.utcnow().isoformat(timespec="milliseconds") + "Z"
+
+
+async def _http_get_json(url: str, params: Dict[str, Any], service: str) -> Dict[str, Any]:
+    """Perform an HTTP GET and return JSON, with tamed upstream error exposure."""
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(url, params=params)
+    except httpx.RequestError as exc:
+        logger.error(
+            "%s upstream request failed: url=%s error=%s",
+            service,
+            url,
+            exc,
+            exc_info=True,
+        )
+        from fastapi import HTTPException  # local import to avoid circulars in type-checking
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceUnavailable",
+                "service": service,
+                "message": f"{service} upstream service is unreachable. See server logs for details.",
+            },
+        )
+
+    if r.status_code >= 400:
+        logger.error(
+            "%s upstream error: url=%s status=%s body=%r",
+            service,
+            url,
+            r.status_code,
+            r.text[:2000],
+        )
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceError",
+                "service": service,
+                "message": f"{service} upstream service returned an error. See server logs for details.",
+                "upstream_status": r.status_code,
+            },
+        )
+
+    try:
+        return r.json()
+    except ValueError as exc:
+        logger.error(
+            "%s upstream JSON decode error: url=%s error=%s body=%r",
+            service,
+            url,
+            exc,
+            r.text[:1000],
+        )
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceError",
+                "service": service,
+                "message": f"{service} upstream service returned invalid JSON. See server logs for details.",
+            },
+        )
 
 @app.middleware("http")
 async def add_request_id_and_timing(request: Request, call_next):
@@ -101,9 +167,7 @@ async def geocode_search(
 
     url = "https://geocoding-api.open-meteo.com/v1/search"
     params = {"name": name, "count": count, "language": language, "format": format}
-    async with httpx.AsyncClient(timeout=15.0) as client:
-        r = await client.get(url, params=params)
-        data = r.json()
+    data = await _http_get_json(url, params, service="open-meteo-geocoding")
     resp = {
         "endpoint": str(request.url),
         "results": data,
@@ -130,9 +194,7 @@ async def atmosphere_forecast(
 
     url = "https://api.open-meteo.com/v1/forecast"
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "daily": daily, "current_weather": current_weather, "timezone": timezone, "forecast_days": forecast_days}
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.get(url, params=params)
-        data = r.json()
+    data = await _http_get_json(url, params, service="open-meteo-forecast")
     resp = {
         "endpoint": str(request.url),
         "forecast": data,
@@ -158,9 +220,7 @@ async def atmosphere_archive(
 
     url = "https://archive-api.open-meteo.com/v1/archive"
     params = {"latitude": lat, "longitude": lon, "start_date": start_date, "end_date": end_date, "hourly": hourly, "daily": daily, "timezone": timezone}
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.get(url, params=params)
-        data = r.json()
+    data = await _http_get_json(url, params, service="open-meteo-archive")
     resp = {
         "endpoint": str(request.url),
         "archive": data,
@@ -183,12 +243,10 @@ async def marine_forecast(
     """Fetch marine forecast variables (waves, currents, etc.) from Open-Meteo."""
 
     url = "https://marine-api.open-meteo.com/v1/marine"
-    hourly="wave_height,wind_speed_10m,wind_direction_10m,sea_surface_temperature"
+    hourly = "wave_height,wind_speed_10m,wind_direction_10m,sea_surface_temperature"
 
     params = {"latitude": lat, "longitude": lon, "hourly": hourly, "timezone": timezone, "forecast_days": forecast_days}
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.get(url, params=params)
-        data = r.json()
+    data = await _http_get_json(url, params, service="open-meteo-marine")
     resp = {
         "endpoint": str(request.url),
         "marine": data,

@@ -18,8 +18,6 @@ import asyncio
 import time
 import os
 
-from ibm_watsonx_orchestrate.agent_builder.tools import tool
-
 from jsonschema import validate, ValidationError
 
 app = FastAPI(title="Arctic Map Agent (Leaflet)")

@@ -14,9 +14,6 @@
 http://150.240.3.116:8201/mcp
 
 
-# Traceability LangFuse
-
-
 # Docs
 [Doc](https://www.ibm.com/docs/en/watsonx/watson-orchestrate/base)
 

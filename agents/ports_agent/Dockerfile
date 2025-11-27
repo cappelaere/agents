@@ -18,7 +18,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy runtime assets
 COPY ports_openapi.yaml ./ports_openapi.yaml
 COPY ports_agent.py ./ports_agent.py
-COPY langfuse_utils.py ./langfuse_utils.py
 
 COPY csv/ ./csv/
 
