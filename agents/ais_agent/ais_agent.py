@@ -27,10 +27,10 @@ from pathlib import Path
 from ais_vessel_info import fetch_vessel_info_by_imo, fetch_vessel_info_by_mmsi, fetch_vessel_info_by_name
 
 import httpx
+import re
 from fastapi import FastAPI, Query, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from ibm_watsonx_orchestrate.agent_builder.tools import tool
 from map import ship_track_geojson, ships_geojson, post_geojson
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -55,7 +55,7 @@ AOI_PATH                    = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_
 
 ENV_KEY                     = os.getenv("AIS_EXPORTVESSELS_KEY", "")
 AIS_EXPORTVESSELS_KEY       = os.getenv("AIS_EXPORTVESSELS_KEY", "")
-AIS_EXPORTVESSELTRACK_KEY   = os.getenv("AIS_EXPORTVESSELTRACK_KEY", "c49b0d8a02dc441b8a75b7a3bf32d216fdd13032")
+AIS_EXPORTVESSELTRACK_KEY   = os.getenv("AIS_EXPORTVESSELTRACK_KEY", "")
 
 AIS_SHIPSEARCH_KEY          = os.getenv("AIS_SHIPSEARCH_KEY", "")
 AIS_VESSELPHOTO_KEY         = os.getenv("AIS_VESSELPHOTO_KEY", "")
@@ -78,6 +78,42 @@ AOI_MSGTYPES = {"simple", "extended", "full"}
 
 SENSITIVE_KEYS_DEFAULT = {"apikey", "api_key", "token", "auth", "authorization"}
 
+
+def _validate_imo(imo: str) -> str:
+    """Validate IMO format (7 digits) or raise HTTP 400."""
+
+    imo = imo.strip()
+    if not re.fullmatch(r"\\d{7}", imo):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid IMO format. Expected 7 digits.",
+        )
+    return imo
+
+
+def _validate_mmsi(mmsi: str) -> str:
+    """Validate MMSI format (9 digits) or raise HTTP 400."""
+
+    mmsi = mmsi.strip()
+    if not re.fullmatch(r"\\d{9}", mmsi):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid MMSI format. Expected 9 digits.",
+        )
+    return mmsi
+
+
+def _validate_ship_name(name: str) -> str:
+    """Validate ship name for safe GraphQL usage."""
+
+    name = name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Ship name must not be empty.")
+    if len(name) > 100:
+        raise HTTPException(status_code=400, detail="Ship name is too long (max 100 characters).")
+    if any(c in name for c in ['"', "\\n", "\\r"]):
+        raise HTTPException(status_code=400, detail="Ship name contains unsupported characters.")
+    return name
 KNOWN_DATE_FORMATS = [
     "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%d %H:%M:%S",
@@ -91,13 +127,6 @@ def normalize_date(s:str) -> str:
         except Exception:
             continue
     raise HTTPException(status_code=400, detail=f"Invalid date format: {s}")
-
-# Initialize LangFuse
-from langfuse import Langfuse
-langfuse = Langfuse(
-    public_key=os.getenv("LANGFUSE_PUBLIC_KEY"),
-    secret_key=os.getenv("LANGFUSE_SECRET_KEY"),
-    host=os.getenv("LANGFUSE_HOST"))
 
 class GovernanceMeta(BaseModel):
     """Governance metadata attached to AIS responses.
@@ -203,19 +232,56 @@ async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | st
         dict | str: Parsed JSON body if the upstream returns JSON, otherwise raw text.
 
     Raises:
-        HTTPException: If the upstream returns a 4xx/5xx status code.
+        HTTPException: If the upstream is unreachable or returns a 4xx/5xx status code.
     """
 
     url = f"{UPSTREAM_BASE}{path}"
+    method = "GET"
 
-    logger.info(f"upstream_get {url} {params}")
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, params=params)
-        if r.status_code >= 400:
-            logger.error(f"Upstream error {r.status_code}: {r.text}")
-            raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
-        ctype = r.headers.get("content-type", "")
-        return r.json() if "application/json" in ctype else r.text
+    logger.info("upstream_get %s %s %s", method, url, params)
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.get(url, params=params)
+    except httpx.RequestError as exc:
+        # Network-level error: DNS failure, connection timeout, etc.
+        logger.error(
+            "AIS upstream request failed: %s %s (%s)",
+            method,
+            url,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceUnavailable",
+                "service": "ais",
+                "message": "AIS upstream service is unreachable. See server logs for details.",
+            },
+        )
+
+    if r.status_code >= 400:
+        # Application-level error from AIS; log full body, return generic error to caller.
+        logger.error(
+            "AIS upstream error %s %s: status=%s body=%r",
+            method,
+            url,
+            r.status_code,
+            r.text[:2000],
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceError",
+                "service": "ais",
+                "message": "AIS upstream service returned an error. See server logs for details.",
+                "upstream_status": r.status_code,
+            },
+        )
+
+    ctype = r.headers.get("content-type", "")
+    return r.json() if "application/json" in ctype else r.text
 
 
 def bbox_around_point_nm(lon: float, lat: float, radius_nm: float) -> Tuple[float, float, float, float]:
@@ -736,12 +802,34 @@ async def vessel_info(
     shipname: Optional[str]     = Query(None, description="Ship Name"),
 ):
     """Return detailed vessel information by MMSI, IMO, or ship name."""
+
+    identifiers = [v for v in (mmsi, imo, shipname) if v]
+    if len(identifiers) != 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide exactly ONE of: mmsi, imo, or shipname.",
+        )
+
     if imo:
+        imo = _validate_imo(imo)
         payload = fetch_vessel_info_by_imo(imo, after_cursor=None)
-    if mmsi:
+    elif mmsi:
+        mmsi = _validate_mmsi(mmsi)
         payload = fetch_vessel_info_by_mmsi(mmsi, after_cursor=None)
-    if shipname:
+    else:
+        shipname = _validate_ship_name(shipname or "")
         payload = fetch_vessel_info_by_name(shipname, after_cursor=None)
+
+    if not isinstance(payload, dict) or "error" in payload:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceError",
+                "service": "ais_graphql",
+                "message": "Failed to fetch vessel information. See server logs for details.",
+            },
+        )
+
     logger.info(f'vessel_info payload: {payload}')
     meta = GovernanceMeta(
         source=APP_NAME,
@@ -802,6 +890,15 @@ async def vessel_track(
     """Return recent track positions for a single vessel."""
 
     apikey = AIS_EXPORTVESSELTRACK_KEY
+    if not apikey:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "ConfigurationError",
+                "message": "AIS_EXPORTVESSELTRACK_KEY is not configured on the server.",
+            },
+        )
+
     params = make_identifier_params(ship_id, mmsi, imo)
     params['protocol'] = 'jsono'
     params['v'] = 3

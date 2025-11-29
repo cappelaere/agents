@@ -14,7 +14,6 @@ from typing import Optional
 from fastmcp import FastMCP  # type: ignore
 
 from . import metoc_client
-#from .langfuse_utils import trace_start, trace_end, trace_flush
 
 mcp = FastMCP(name="Open METOC Server")
 

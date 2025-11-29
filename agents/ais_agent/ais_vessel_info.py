@@ -10,10 +10,78 @@ agent to enrich vessel responses with detailed ownership and particulars.
 
 import requests
 import json, os
+import logging
+
+logger = logging.getLogger("ais_vessel_info")
+if not logger.handlers:
+    logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 
 # - 1. Set API endpoint and authentication
 BASE_URL    = "https://api.kpler.marinetraffic.com/v2/vessels/graphql"
 API_KEY     = os.getenv("AIS_OWNERSHIP_KEY", "")
+
+
+def _escape_graphql_string(value: str) -> str:
+    """Escape a Python string for safe inclusion in a GraphQL string literal."""
+
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _post_graphql(query: str) -> dict:
+    """Post a GraphQL query to the Kpler/MarineTraffic endpoint with safe error handling."""
+
+    headers = {
+        "Authorization": f"Basic {API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        response = requests.post(
+            BASE_URL,
+            json={"query": query},
+            headers=headers,
+            timeout=30.0,
+        )
+    except requests.RequestException as exc:
+        logger.error(
+            "AIS GraphQL request failed: url=%s error=%s",
+            BASE_URL,
+            exc,
+            exc_info=True,
+        )
+        return {
+            "error": "UpstreamServiceUnavailable",
+            "service": "ais_graphql",
+            "message": "Vessel info service is unreachable. See server logs for details.",
+        }
+
+    if response.status_code != 200:
+        logger.error(
+            "AIS GraphQL upstream error: status=%s body=%r",
+            response.status_code,
+            response.text[:2000],
+        )
+        return {
+            "error": "UpstreamServiceError",
+            "service": "ais_graphql",
+            "status": response.status_code,
+            "message": "Vessel info service returned an error. See server logs for details.",
+        }
+
+    try:
+        return response.json()
+    except ValueError as exc:
+        logger.error(
+            "AIS GraphQL JSON decode error: %s body=%r",
+            exc,
+            response.text[:1000],
+        )
+        return {
+            "error": "UpstreamServiceError",
+            "service": "ais_graphql",
+            "status": response.status_code,
+            "message": "Vessel info service returned invalid JSON. See server logs for details.",
+        }
 
 
 def fetch_vessel_info_by_imo(imo, after_cursor=None):
@@ -27,6 +95,7 @@ def fetch_vessel_info_by_imo(imo, after_cursor=None):
         dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
     """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
+    imo_safe = _escape_graphql_string(str(imo))
     query = f"""
     query Vessels {{
         vessels(
@@ -36,7 +105,7 @@ def fetch_vessel_info_by_imo(imo, after_cursor=None):
                     {{
                         field: "identifier.imo"
                         op: IN
-                        values: ["{imo}"]
+                        values: ["{imo_safe}"]
                     }}
                     #{{
                     #    field: "identifier.mmsi"
@@ -161,22 +230,8 @@ def fetch_vessel_info_by_imo(imo, after_cursor=None):
     }}
     """
 
-    # - 4. Set up HTTP headers for authentication
-    headers = {
-        "Authorization": f"Basic {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    # - 5. Send the request 
-    response = requests.post(BASE_URL, json={"query": query}, headers=headers)
-
-    # - 6. Handle errors
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-        return None
-
-    # - 7. Return formatted JSON response
-    return response.json()
+    # - 4–7. Send the request with safe error handling
+    return _post_graphql(query)
 
 # =====================================================
 def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
@@ -190,6 +245,7 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
         dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
     """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
+    mmsi_safe = _escape_graphql_string(str(mmsi))
     query = f"""
     query Vessels {{
         vessels(
@@ -204,7 +260,7 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
                     {{
                         field: "identifier.mmsi"
                         op: EQ
-                        values: ["{mmsi}"]
+                        values: ["{mmsi_safe}"]
                     }}
                     #{{
                     #    field: "management.beneficialOwner.current.name"
@@ -324,22 +380,8 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
     }}
     """
 
-    # - 4. Set up HTTP headers for authentication
-    headers = {
-        "Authorization": f"Basic {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    # - 5. Send the request 
-    response = requests.post(BASE_URL, json={"query": query}, headers=headers)
-
-    # - 6. Handle errors
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-        return None
-
-    # - 7. Return formatted JSON response
-    return response.json()
+    # - 4–7. Send the request with safe error handling
+    return _post_graphql(query)
 
 # =====================================================
 def fetch_vessel_info_by_name(name, after_cursor=None):
@@ -353,6 +395,7 @@ def fetch_vessel_info_by_name(name, after_cursor=None):
         dict | None: Parsed JSON response from the GraphQL API, or ``None`` on error.
     """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
+    name_safe = _escape_graphql_string(str(name))
     query = f"""
     query Vessels {{
         vessels(
@@ -372,7 +415,7 @@ def fetch_vessel_info_by_name(name, after_cursor=None):
                     {{
                         field: "management.beneficialOwner.current.name"
                         op: LIKE
-                        values: ["{name}"]
+                        values: ["{name_safe}"]
                     }}
                 ]
                 operator: OR   # To combine multiple filters, use OR or AND
@@ -487,22 +530,8 @@ def fetch_vessel_info_by_name(name, after_cursor=None):
     }}
     """
 
-    # - 4. Set up HTTP headers for authentication
-    headers = {
-        "Authorization": f"Basic {API_KEY}",
-        "Content-Type": "application/json"
-    }
-
-    # - 5. Send the request 
-    response = requests.post(BASE_URL, json={"query": query}, headers=headers)
-
-    # - 6. Handle errors
-    if response.status_code != 200:
-        print(f"Error {response.status_code}: {response.text}")
-        return None
-
-    # - 7. Return formatted JSON response
-    return response.json()
+    # - 4–7. Send the request with safe error handling
+    return _post_graphql(query)
 
 # - 8. Fetch first page
 #imo = 9411410

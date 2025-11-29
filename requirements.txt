@@ -45,7 +45,6 @@ jsonref==1.1.0
 jsonschema==4.23.0
 jsonschema-specifications==2025.9.1
 langchain-core==0.3.63
-langfuse==3.10.0
 langsmith==0.3.45
 legacy-cgi==2.6.4
 lomond==0.3.3

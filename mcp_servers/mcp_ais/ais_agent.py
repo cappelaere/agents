@@ -17,7 +17,6 @@ import httpx
 from fastapi import Query, Header, HTTPException, Path, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from ibm_watsonx_orchestrate.agent_builder.tools import tool
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_JSON  = os.getenv("LOG_JSON", "1") in {"1", "true", "True"}
@@ -40,7 +39,7 @@ AOI_PATH                    = os.getenv("AOI_GEOJSON_PATH", "alaska_uscg_arctic_
 
 ENV_KEY                     = os.getenv("AIS_EXPORTVESSELS_KEY", "")
 AIS_EXPORTVESSELS_KEY       = os.getenv("AIS_EXPORTVESSELS_KEY", "")
-AIS_EXPORTVESSELTRACK_KEY   = os.getenv("AIS_EXPORTVESSELTRACK_KEY", "c49b0d8a02dc441b8a75b7a3bf32d216fdd13032")
+AIS_EXPORTVESSELTRACK_KEY   = os.getenv("AIS_EXPORTVESSELTRACK_KEY", "")
 
 AIS_SHIPSEARCH_KEY          = os.getenv("AIS_SHIPSEARCH_KEY", "")
 AIS_VESSELPHOTO_KEY         = os.getenv("AIS_VESSELPHOTO_KEY", "")
@@ -98,15 +97,57 @@ def resolve_api_key(header_key: Optional[str]) -> str:
     return key
 
 async def upstream_get(path: str, params: Dict[str, Any]) -> Dict[str, Any] | str:
-    url = f"{UPSTREAM_BASE}{path}"
+    """Perform a GET request against the configured upstream AIS REST API.
 
-    logger.info(f"upstream_get {url} {params}")
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        r = await client.get(url, params=params)
-        if r.status_code >= 400:
-            raise HTTPException(status_code=r.status_code, detail={"upstream_error": r.text})
-        ctype = r.headers.get("content-type", "")
-        return r.json() if "application/json" in ctype else r.text
+    Returns parsed JSON if possible; otherwise returns text, with upstream
+    errors logged and exposed to callers in a generic, structured form.
+    """
+
+    url = f"{UPSTREAM_BASE}{path}"
+    method = "GET"
+
+    logger.info("upstream_get %s %s %s", method, url, params)
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            r = await client.get(url, params=params)
+    except httpx.RequestError as exc:
+        logger.error(
+            "AIS upstream request failed: %s %s (%s)",
+            method,
+            url,
+            exc,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceUnavailable",
+                "service": "ais",
+                "message": "AIS upstream service is unreachable. See server logs for details.",
+            },
+        )
+
+    if r.status_code >= 400:
+        logger.error(
+            "AIS upstream error %s %s: status=%s body=%r",
+            method,
+            url,
+            r.status_code,
+            r.text[:2000],
+        )
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "error": "UpstreamServiceError",
+                "service": "ais",
+                "message": "AIS upstream service returned an error. See server logs for details.",
+                "upstream_status": r.status_code,
+            },
+        )
+
+    ctype = r.headers.get("content-type", "")
+    return r.json() if "application/json" in ctype else r.text
 
 def bbox_around_point_nm(lon: float, lat: float, radius_nm: float) -> Tuple[float, float, float, float]:
     radius_km = radius_nm * 1.852
