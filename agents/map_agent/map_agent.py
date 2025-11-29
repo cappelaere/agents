@@ -47,6 +47,19 @@ async def daily_brief():
         raise HTTPException(status_code=404, detail="daily_brief.pdf not found in static/")
     return FileResponse(pdf_path, media_type="application/pdf")
 
+@app.get("/vessel_risk_report")
+async def vessel_risk_report():
+    """Serve the daily brief PDF from the static directory.
+
+    Expects a file named ``VesselRiskReport.pdf`` under the ``static`` folder.
+    Most browsers will render the PDF inline.
+    """
+
+    pdf_path = os.path.join("static", "VesselRiskReport.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="VesselRiskReport.pdf not found in static/")
+    return FileResponse(pdf_path, media_type="application/pdf")
+
 # --- CORS ---
 app.add_middleware(
     CORSMiddleware,
