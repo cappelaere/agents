@@ -34,6 +34,19 @@ async def favicon():
     return FileResponse("static/favicon.png")
 
 
+@app.get("/daily_brief")
+async def daily_brief():
+    """Serve the daily brief PDF from the static directory.
+
+    Expects a file named ``daily_brief.pdf`` under the ``static`` folder.
+    Most browsers will render the PDF inline.
+    """
+
+    pdf_path = os.path.join("static", "daily_brief.pdf")
+    if not os.path.exists(pdf_path):
+        raise HTTPException(status_code=404, detail="daily_brief.pdf not found in static/")
+    return FileResponse(pdf_path, media_type="application/pdf")
+
 # --- CORS ---
 app.add_middleware(
     CORSMiddleware,
