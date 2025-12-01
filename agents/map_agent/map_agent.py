@@ -225,10 +225,19 @@ async def health():
     """Basic liveness probe for the map agent."""
     return {"status": "ok"}
 
-# ---------- Home Page ---------------
+# ---------- Home & Map Pages ---------------
+
 @app.get("/", response_class=HTMLResponse)
+async def arctic_home(request: Request):
+    """Render the Arctic Operations home page with hero graphics."""
+
+    return templates.TemplateResponse("home.html", {"request": request})
+
+
+@app.get("/map", response_class=HTMLResponse)
 async def arctic_map(request: Request):
     """Render the main Leaflet map page centered on the Arctic."""
+
     return templates.TemplateResponse("index.html", {"request": request})
 
 async def _keepalive_task(websocket: WebSocket, interval_sec: int = 25):
