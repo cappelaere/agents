@@ -43,6 +43,7 @@ def _post_graphql(query: str) -> dict:
             timeout=30.0,
         )
     except requests.RequestException as exc:
+        logger.info("AIS GraphQL request exception: %s", exc)
         logger.error(
             "AIS GraphQL request failed: url=%s error=%s",
             BASE_URL,
@@ -56,6 +57,7 @@ def _post_graphql(query: str) -> dict:
         }
 
     if response.status_code != 200:
+        logger.info("AIS GraphQL upstream error: status=%s", response.status_code)
         logger.error(
             "AIS GraphQL upstream error: status=%s body=%r",
             response.status_code,
@@ -69,8 +71,9 @@ def _post_graphql(query: str) -> dict:
         }
 
     try:
-        return response.json()
+        data = response.json()
     except ValueError as exc:
+        logger.info("AIS GraphQL JSON decode error: %s", exc)
         logger.error(
             "AIS GraphQL JSON decode error: %s body=%r",
             exc,
@@ -82,7 +85,7 @@ def _post_graphql(query: str) -> dict:
             "status": response.status_code,
             "message": "Vessel info service returned invalid JSON. See server logs for details.",
         }
-
+    return data
 
 def fetch_vessel_info_by_imo(imo, after_cursor=None):
     """Fetch detailed vessel information from Kpler/MarineTraffic by IMO.
@@ -246,6 +249,7 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
     """
     # - 3. Define GraphQL query: you can comment out some of the sections to include more fields in the response.
     mmsi_safe = _escape_graphql_string(str(mmsi))
+    logger.info("Fetching vessel info for MMSI: %s", mmsi_safe)
     query = f"""
     query Vessels {{
         vessels(
@@ -379,7 +383,6 @@ def fetch_vessel_info_by_mmsi(mmsi, after_cursor=None):
         }}
     }}
     """
-
     # - 4–7. Send the request with safe error handling
     return _post_graphql(query)
 

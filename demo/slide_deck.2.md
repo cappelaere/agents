@@ -1,9 +1,5 @@
 # ⭐ **IBM Orchestrate PoX for Arctic Region DSS**
 
-### **Integrated Slides + Speaker Notes Script (Slides 0–2)**
-
----
-
 # **SLIDE 0 — IBM Orchestrate PoX for Arctic Region DSS**
 
 **IBM Orchestrate PoX for Arctic Region DSS**
@@ -419,6 +415,9 @@ Instead of rebuilding capability each time, teams simply *reuse* existing agents
 
 Agents can use:
 
+* llama 3.1, 3.2, 4
+* Mistral
+* GPT OSS
 * Granite reasoning models
 * Granite Guard (safety-tuned)
 * Domain-tuned models
@@ -426,26 +425,6 @@ Agents can use:
 
 Switchable in seconds.
 
-| Models  |
-| ------- |
-| watsonx/meta-llama/llama-3-2-90b-vision-instruct |
-watsonx/meta-llama/llama-3-405b-instruct|
-watsonx/ibm/granite-3-1-8b-base | 
-watsonx/ibm/granite-3-2-8b-instruct |
-watsonx/ibm/granite-3-3-8b-instruct |
-watsonx/ibm/granite-3-8b-instruct |
-watsonx/ibm/granite-4-h-small |
-watsonx/ibm/granite-8b-code-instruct |
-watsonx/ibm/granite-guardian-3-8b |
-watsonx/meta-llama/llama-3-1-70b-gptq |
-watsonx/meta-llama/llama-3-1-8b |
-watsonx/meta-llama/llama-3-2-11b-vision-instruct |
-watsonx/meta-llama/llama-3-3-70b-instruct |
-watsonx/meta-llama/llama-4-maverick-17b-128e-instruct-fp8 |
-watsonx/meta-llama/llama-guard-3-11b-vision |
-watsonx/mistralai/mistral-medium-2505 |
-watsonx/mistralai/mistral-small-3-1-24b-instruct-2503     |
-watsonx/openai/gpt-oss-120b  |
 
 ---
 
@@ -465,8 +444,7 @@ You want consistent agent capability — but continuously improving models.
 Orchestrate gives you that separation of concerns.”
 
 ---
-
-# **SLIDE 12 — Section Header: Orchestration**
+Section Header: Orchestration**
 
 **Subtitle:** Multi-Step Planning Across Agents
 
@@ -858,12 +836,14 @@ This is the operational value of Agentic AI.”
 
 Potential next steps:
 
-* Additional domain agents (SAR, RF, EMCON)
-* Deep Dive Governance
+* Deep Dive 
+    * Automated Governance
+    * Enterprise Governance
+    * Automated Workflows
+    * Orchestrate ADK
+* Additional Data Sources & Domain Agents
 * Global Distribution Network at zero egress cost
-* IL4/IL5 deployment
-* Watch floor integration
-* Real-time mission feeds
+* IL4/IL5 deployment & Integration with MSS and C2 systems
 * Joint LOE / pilot
 
 ---
@@ -872,8 +852,8 @@ Potential next steps:
 
 “The path forward is clear:
 
-* Expand the set of agents, including SAR and RF.
-* Integrate into watch floor and C2 systems.
+* Deep dive demos on various technology aspects
+* Expand the set of data source and agents
 * Align with IL4/IL5 deployment requirements.
 * Begin joint workflows with the operations teams.
 * And potentially launch a LOE or operational pilot.

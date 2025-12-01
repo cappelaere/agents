@@ -37,13 +37,17 @@
       <h4>Live GeoJSON</h4>
       <p>POST to <code>/ingest</code> and features appear here in real time.</p>
     </div>
+    
     <div id="toast" class="toast"></div>
+    
+    <div id="root"></div>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
-    ></script>
+    >
+    </script>
     <script
       src="https://cdn.jsdelivr.net/npm/@turf/turf@7.1.0/turf.min.js"
     ></script>
@@ -154,5 +158,45 @@ setStatus('#f59e0b', 'connecting…');
         window.__toastTimer = setTimeout(() => { el.style.display = 'none'; }, 2500);
       }
     </script>
+    <!--
+    <script>
+  window.wxOConfiguration = {
+    orchestrationID: "a8b6f41c856d4312a3bc7a99e5eab392_011eb689-9996-483f-96e3-89410b775a5d",
+    hostURL: "https://us-south.watson-orchestrate.cloud.ibm.com",
+    rootElementID: "root",
+    showLauncher: false,
+    deploymentPlatform: "ibmcloud",
+    crn: "crn:v1:bluemix:public:watsonx-orchestrate:us-south:a/a8b6f41c856d4312a3bc7a99e5eab392:011eb689-9996-483f-96e3-89410b775a5d::",
+    chatOptions: {
+        agentId: "c4d04977-bf78-4b74-81b8-63c7e0ddfe5a", 
+        agentEnvironmentId: "299af831-2053-4d95-bcd8-342fbb23aea9",
+    },
+    // layout: {
+    //   form: "fullscreen-overlay", // Options: float | custom | fullscreen-overlay - if not specified float is default
+    //   showOrchestrateHeader: true, // Optional: shows top agent header bar
+    //   width: "600px", // Optional: honored when form is float only
+    //   height: "600px", // Optional: honored when form is float only
+    // },
+    // header: {
+    //   showResetButton: true,   // optional; defaults to true
+    //   showAiDisclaimer: true   // optional; defaults to true
+    // },
+    style: {
+      headerColor: '', //6-digit hex value or empty for default
+      userMessageBackgroundColor: '', //6-digit hex value or empty for default
+      primaryColor: '', //6-digit hex value or empty for default
+      showBackgroundGradient: true, // optional; defaults to true
+    },
+  };
+  setTimeout(function () {
+    const script = document.createElement('script');
+    script.src = `${window.wxOConfiguration.hostURL}/wxochat/wxoLoader.js?embed=true`;
+    script.addEventListener('load', function () {
+        wxoLoader.init();
+    });
+    document.head.appendChild(script);
+  }, 0);                     
+    </script>
+  -->
   </body>
 </html>

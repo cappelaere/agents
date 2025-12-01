@@ -57,6 +57,14 @@ orchestrate agents list -v
 orchestrate agents remove --name metoc_agent --kind native
 ```
 
+## Embed agent
+crn:v1:bluemix:public:watsonx-orchestrate:us-south:a/a8b6f41c856d4312a3bc7a99e5eab392:011eb689-9996-483f-96e3-89410b775a5d::
+```
+orchestrate channels webchat embed \
+  --agent-name arctic_assistant_6227vR \
+  --env live
+```
+
 ## Manage models
 ```
 orchestrate models list

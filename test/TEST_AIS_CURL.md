@@ -43,6 +43,9 @@ curl -s "$BASE/vessel/info?mmsi=257017000" | jq .
 curl -s "$BASE/vessel/info?imo=273214780" | jq .
 curl -s "$BASE/vessel/info?shipname=BOSS" | jq .
 
+curl -s "$BASE/vessel/info?imo=9369198" | jq .
+curl -s "$BASE/vessel/info?mmsi=368066590" | jq .
+
 'mmsi': '368378980'
 'imo': 8662593
 

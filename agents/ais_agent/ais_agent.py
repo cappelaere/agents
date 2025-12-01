@@ -37,15 +37,15 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
 LOG_JSON  = os.getenv("LOG_JSON", "1") in {"1", "true", "True"}
 
 logger = logging.getLogger()
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(
-    fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+# handler = logging.StreamHandler(sys.stdout)
+# formatter = logging.Formatter(
+#     fmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+# )
+# handler.setFormatter(formatter)
+# logger.addHandler(handler)
 logger.setLevel(LOG_LEVEL)
-logger.info("***** Starting logger...")
+logger.info(f"***** Starting logger {LOG_LEVEL}...")
 
 APP_NAME                    = "ais_agent"
 APP_VERSION                 = "0.2.0"
@@ -83,7 +83,7 @@ def _validate_imo(imo: str) -> str:
     """Validate IMO format (7 digits) or raise HTTP 400."""
 
     imo = imo.strip()
-    if not re.fullmatch(r"\\d{7}", imo):
+    if not re.fullmatch(r"\d{7}", imo):
         raise HTTPException(
             status_code=400,
             detail="Invalid IMO format. Expected 7 digits.",
@@ -95,7 +95,7 @@ def _validate_mmsi(mmsi: str) -> str:
     """Validate MMSI format (9 digits) or raise HTTP 400."""
 
     mmsi = mmsi.strip()
-    if not re.fullmatch(r"\\d{9}", mmsi):
+    if not re.fullmatch(r"\d{9}", mmsi):
         raise HTTPException(
             status_code=400,
             detail="Invalid MMSI format. Expected 9 digits.",
@@ -809,12 +809,14 @@ async def vessel_info(
             status_code=400,
             detail="Provide exactly ONE of: mmsi, imo, or shipname.",
         )
-
+    logger.info(f'vessel_info called with mmsi:{mmsi} imo:{imo} shipname:{shipname}')   
     if imo:
         imo = _validate_imo(imo)
+        logger.info(f'fetching vessel info for imo: {imo}')
         payload = fetch_vessel_info_by_imo(imo, after_cursor=None)
     elif mmsi:
         mmsi = _validate_mmsi(mmsi)
+        logger.info(f'fetching vessel info for mmsi: {mmsi}')
         payload = fetch_vessel_info_by_mmsi(mmsi, after_cursor=None)
     else:
         shipname = _validate_ship_name(shipname or "")
