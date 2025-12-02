@@ -22,7 +22,7 @@ curl -i "$BASE/seaice/download?time=2025-09-01&force=true" \
 
 4) Point sample (GET)
 # lat/lon near Arctic ocean; adjust as needed
-curl -i "$BASE/seaice/point?lat=82.0&lon=20.0&time=2025-09-01" \
+curl -i "$BASE/seaice/point?lat=82.0&lon=-120.0&time=2025-11-30" \
   -H "X-Request-ID: ${RID:-test-point-001}"
 
 5) Stats over a bbox (POST)

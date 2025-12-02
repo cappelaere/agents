@@ -347,9 +347,11 @@
         <span class="pill">WebSocket map live</span>
       </div>
     </header>
-
     <main>
       <section class="hero">
+        <div>
+              <img src="/static/cutter.png" width="400" height="400"/>
+        </div>
         <div class="eyebrow">Arctic situational awareness</div>
         <h1>
           A single AI‑ready view of
@@ -363,7 +365,7 @@
         </p>
 
         <div class="hero-actions">
-          <a href="/"
+          <a href="/map"
              class="button-primary">
             Open Arctic map
             <span style="font-size:11px;">↗</span>
@@ -421,22 +423,39 @@
                 <div style="font-size:10px;color:#6b7280;">NSIDC NRT grid coverage</div>
               </div>
             </div>
-            <div class="chat-shell">
-              <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span>Embedded Arctic brief assistant</span>
-                <span style="font-size:10px;color:#6b7280;">Drop your chat widget into <code>#chat-root</code></span>
-              </div>
-              <div id="chat-root">
-                <!-- Your web chat / orchestrate widget goes here.
-                     Example:
-                     1. Include your configuration script above.
-                     2. Initialize and render into this container. -->
-              </div>
-            </div>
           </div>
         </div>
       </section>
     </main>
+    <div id='root'> </div>
+    <script>
+      window.wxOConfiguration = {
+        orchestrationID: "a8b6f41c856d4312a3bc7a99e5eab392_011eb689-9996-483f-96e3-89410b775a5d",
+        hostURL: "https://us-south.watson-orchestrate.cloud.ibm.com",
+        rootElementID: "root",
+        showLauncher: false,
+        deploymentPlatform: "ibmcloud",
+        crn: "crn:v1:bluemix:public:watsonx-orchestrate:us-south:a/a8b6f41c856d4312a3bc7a99e5eab392:011eb689-9996-483f-96e3-89410b775a5d::",
+        chatOptions: {
+            agentId: "c4d04977-bf78-4b74-81b8-63c7e0ddfe5a", 
+            agentEnvironmentId: "299af831-2053-4d95-bcd8-342fbb23aea9",
+        },
+        style: {
+          headerColor: '', //6-digit hex value or empty for default
+          userMessageBackgroundColor: '', //6-digit hex value or empty for default
+          primaryColor: '', //6-digit hex value or empty for default
+          showBackgroundGradient: true, // optional; defaults to true
+        },
+      };
+      setTimeout(function () {
+        const script = document.createElement('script');
+        script.src = `${window.wxOConfiguration.hostURL}/wxochat/wxoLoader.js?embed=true`;
+        script.addEventListener('load', function () {
+            wxoLoader.init();
+        });
+        document.head.appendChild(script);
+      }, 0);                     
+    </script>
   </body>
 </html>
 

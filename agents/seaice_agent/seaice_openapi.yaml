@@ -19,9 +19,7 @@ servers:
     description: Production server
   - url: http://localhost:8090/seaice
     description: Local development
-security:
-  - ApiKeyAuth: []
-  - BearerAuth: []
+
 tags:
   - name: Health
   - name: Visualization

@@ -16,7 +16,7 @@ payloads to watsonx.governance (OpenScale) based on environment variables.
 
 from fastapi import FastAPI, Query, HTTPException, Body, Request
 from typing import Optional, Dict, Any, Tuple, List
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import pathlib
 import httpx
@@ -25,6 +25,7 @@ import socket
 import math
 import time
 import logging
+import traceback
 
 import numpy as np
 from pyproj import Transformer
@@ -63,9 +64,13 @@ pathlib.Path(NSIDC_DATA_DIR).mkdir(parents=True, exist_ok=True)
 # -----------------------------
 # Logger
 # -----------------------------
-logger = logging.getLogger("seaice_agent")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+logger = logging.getLogger('seaice_agent')
+logger.setLevel(LOG_LEVEL)
 if not logger.handlers:
     logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
+
+logger.info(f"***** Starting logger {LOG_LEVEL}...")
 
 # -----------------------------
 # Optional watsonx.governance (OpenScale) config
@@ -187,6 +192,7 @@ def _open_ds(local_path: str):
     if local_path in _ds_cache:
         return _ds_cache[local_path]
     if not os.path.exists(local_path):
+        logger.error(f"Local file not found when opening dataset: {local_path}")
         raise HTTPException(status_code=404, detail=f"Local file not found: {local_path}")
     ds = xr.open_dataset(local_path, engine="netcdf4")
     _ds_cache[local_path] = ds
@@ -451,49 +457,67 @@ async def point_sample(
     time: Optional[str] = None,
     request: Request = None,
 ):
+    logger.info(f"Point sample request for lat: {lat}, lon: {lon}, time: {time}")
+    if time:
+        t = time #datetime.strptime(time, "%Y-%m-%d")
+    else:
+        utc_now = datetime.now(timezone.utc)
+        t = utc_now.strftime('%Y-%m-%d')
+    
+    logger.info(f"Using time for point sample: {t}")
 
-    t = time or datetime.utcnow().strftime("%Y-%m-%d")
-    local_path, sensor, _ = _ensure_local_file(t, force=False)
-    ds = _open_ds(local_path)
-
-    x, y = _to_proj(lon, lat)
-    sel = _nearest_index(ds, x, y, lon=lon, lat=lat)
-
-    if NSIDC_VAR_NAME not in ds.variables:
-        raise HTTPException(status_code=500, detail=f"Variable '{NSIDC_VAR_NAME}' not found in dataset.")
-
-    da = ds[NSIDC_VAR_NAME]
-    val = float(da.isel(**sel).values)
-
-    scaled = False
-    vf = val
-    # Heuristic: many sea-ice conc products are 0..1 or 0..100
-    if vf > 1.5:
-        vf = vf / 100.0
-        scaled = True
-
-    resp = {
-        "lat": lat,
-        "lon": lon,
-        "time": t,
-        "value_raw": float(val),
-        "value_fraction": float(vf),
-        "file": os.path.abspath(local_path),
-        "variable": NSIDC_VAR_NAME,
-        "projection": NSIDC_CRS,
-        "sensor": sensor,
-    }
-    resp["governance"] = _gov_base(
-        endpoint="/seaice/point",
-        request_id=_get_req_id(request) if request else None,
-        inputs={"lat": lat, "lon": lon, "time": t},
-        lineage={"local_file": resp["file"], "variable": NSIDC_VAR_NAME, "crs": NSIDC_CRS, "sensor": sensor},
-        quality={"scaling_applied": scaled, "nearest_index": True},
-    )
+    try:    
+        local_path, sensor, _ = _ensure_local_file(t, force=False)
+        ds = _open_ds(local_path)
+    except Exception as e:
+        logger.error("File not found Error e.stack: {traceback.format_exc()}")
+        logger.error(e)
+        return HTTPException(status_code=500, detail=str(e))
+    
     try:
+        x, y = _to_proj(lon, lat)
+        sel = _nearest_index(ds, x, y, lon=lon, lat=lat)
+
+        if NSIDC_VAR_NAME not in ds.variables:
+            raise HTTPException(status_code=500, detail=f"Variable '{NSIDC_VAR_NAME}' not found in dataset.")
+
+        da = ds[NSIDC_VAR_NAME]
+        val = float(da.isel(**sel).values)
+        if not np.isfinite(val):
+            logger.error(f"No valid data at location lat={lat}, lon={lon} for time={t}.")
+            raise HTTPException(status_code=404, detail=f"No valid data at location lat={lat}, lon={lon} for time={t}.")    
+        
+        scaled = False
+        vf = val
+        # Heuristic: many sea-ice conc products are 0..1 or 0..100
+        if vf > 1.5:
+            vf = vf / 100.0
+            scaled = True
+
+        resp = {
+            "lat": lat,
+            "lon": lon,
+            "time": t,
+            "value_raw": float(val),
+            "value_fraction": float(vf),
+            "file": os.path.abspath(local_path),
+            "variable": NSIDC_VAR_NAME,
+            "projection": NSIDC_CRS,
+            "sensor": sensor,
+        }
+        resp["governance"] = _gov_base(
+            endpoint="/seaice/point",
+            request_id=_get_req_id(request) if request else None,
+            inputs={"lat": lat, "lon": lon, "time": t},
+            lineage={"local_file": resp["file"], "variable": NSIDC_VAR_NAME, "crs": NSIDC_CRS, "sensor": sensor},
+            quality={"scaling_applied": scaled, "nearest_index": True},
+        )
+    
         await _wxg_log_payload(resp["governance"], output={"value_fraction": resp["value_fraction"]})
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error("Error e.stack: {traceback.format_exc()}")
+        logger.error(e)
+        return HTTPException(status_code=500, detail=str(e))
 
     return resp
 
